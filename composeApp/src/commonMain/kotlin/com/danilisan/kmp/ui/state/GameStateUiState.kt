@@ -1,27 +1,28 @@
 package com.danilisan.kmp.ui.state
 
-import com.danilisan.kmp.domain.entity.BoardNumberBox
-import com.danilisan.kmp.domain.entity.GameMode
-import com.danilisan.kmp.domain.entity.Line
+import com.danilisan.kmp.domain.entity.BoardPosition
+import com.danilisan.kmp.domain.entity.DisplayMessage
 import com.danilisan.kmp.domain.entity.NumberBox
 import com.danilisan.kmp.domain.entity.Score
-import com.danilisan.kmp.domain.extension.getAllAvailableLinesOnBoard
 
 data class GameStateUiState (
-    val gameMode: GameMode = DEFAULT_MODE,
-    val board: Set<BoardNumberBox> = emptySet(),
+    //Model fields
+    val reloadsLeft: Int = 0,
     val queue: List<NumberBox> = emptyList(),
+    val board: Map<BoardPosition, NumberBox> = emptyMap(),
     val score: Score = Score(),
-    val availableLines: List<Line> = emptyList(),
-    val reloadsLeft: Int = gameMode.initialReloads,
+    //UI exclusive fields
+    val boardState: BoardState = BoardState.READY,
+    val availableLines: Set<Int> = emptySet(),
+    val displayMessage: DisplayMessage = DisplayMessage(),
+    //Box selection
+    val selectedPositions: List<BoardPosition> = emptyList(),
+    val incompleteSelection: Boolean = false,
+    //Line drag
+    val linedPositions: List<BoardPosition?> = emptyList(), //Posibilidad de unificar con selected positions
+    val completedLines: List<Int> = emptyList(),
+
+    //Loading flag
     val isLoading: Boolean = true,
-    val isBlocked: Boolean = true
-){
-    suspend fun calculateAvailableLines(): List<Line>{
-        return this.board.getAllAvailableLinesOnBoard(this.gameMode.isWinCondition)
-    }
-    companion object{
-        val DEFAULT_MODE = GameMode.EasyAddGameMode
-    }
-}
+)
 

@@ -4,6 +4,6 @@ import com.danilisan.kmp.data.datasource.DataSource
 
 interface Repository<T> {
     val dataSources: List<DataSource<T>>
-    fun getElement(): T?
-    fun updateElement(element: T)
+    suspend fun getElement(): T?
+    suspend fun updateElement(element: T)
 }

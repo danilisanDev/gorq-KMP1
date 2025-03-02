@@ -6,10 +6,9 @@ import kotlin.reflect.KClass
 class GetFromRepositoryUseCase (
     private val repositoryMap: Map<KClass<*>, Repository<*>>
 ) {
-    operator fun <T : Any> invoke(model: T): T?  {
+    suspend operator fun <T : Any> invoke(model: T): T?  {
         val repository = repositoryMap[model::class] as? Repository<T>
             ?: throw IllegalArgumentException("No repository found for ${model::class}")
         return repository.getElement()
     }
-
 }

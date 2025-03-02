@@ -7,6 +7,7 @@ import kotlinx.serialization.Serializable
 data class ScoreModel (
     val points: Long = 0L,
     val lines: Int = 0,
-    val date: LocalDateTime? = null
+    val turns: Int = 0,
+    val date: LocalDateTime? = null,
 )
 

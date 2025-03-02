@@ -9,13 +9,6 @@ import org.koin.dsl.KoinAppDeclaration
 fun initKoin(config: KoinAppDeclaration? = null){
     startKoin{
         config?.invoke(this)
-        modules(dataModule, domainModule, uiModule)
+        modules(commonModule, dataModule, domainModule, uiModule)
     }
 }
-    //Qualifiers
-//    enum class Qualifier{
-//        nombre1
-//        nombre2
-//    }
-//
-//    single(named(Qualifier.nombre1)) {}

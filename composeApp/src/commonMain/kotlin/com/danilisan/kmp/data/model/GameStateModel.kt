@@ -6,9 +6,8 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class GameStateModel(
     val gameMode: Int = 0,
-    val board: List<Int> = emptyList(),
-    val queue: List<Int> = emptyList(),
-    val score: ScoreModel = ScoreModel(),
     val reloadsLeft: Int = 0,
-    val isBlocked: Boolean = true,
-    )
+    val queue: List<Int> = emptyList(),
+    val board: List<Int> = emptyList(),
+    val score: ScoreModel = ScoreModel(),
+)

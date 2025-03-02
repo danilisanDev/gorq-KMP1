@@ -2,123 +2,127 @@ package com.danilisan.kmp.domain.mapper
 
 import com.danilisan.kmp.data.model.GameStateModel
 import com.danilisan.kmp.data.model.gameState.ScoreModel
-import com.danilisan.kmp.domain.entity.BoardNumberBox
+import com.danilisan.kmp.domain.entity.BoardHelper.GAME_MODES
 import com.danilisan.kmp.domain.entity.BoardPosition
 import com.danilisan.kmp.domain.entity.GameMode
 import com.danilisan.kmp.domain.entity.Score
 import com.danilisan.kmp.domain.entity.NumberBox
-import com.danilisan.kmp.domain.extension.getAllAvailableLinesOnBoard
 import com.danilisan.kmp.ui.state.GameStateUiState
 
-private const val GAME_MODE_EASY_ADD = 0 //Default
-private const val GAME_MODE_HARD_MULTIPLY = 1
 
 private const val NUMBER_TYPE_REGULAR = 0 //Default
 private const val NUMBER_TYPE_BLOCK = 1
-private const val NUMBER_TYPE_STAR = 2
+private const val NUMBER_TYPE_GOLDEN_STAR = 2
+private const val NUMBER_TYPE_SILVER_STAR = 3
 private const val INTERVAL_TYPE = 10
 
-
-
 //Extensions for mapping from Model to Domain/UI
-//Aplicar corrutinas
-suspend fun GameStateModel.toUiState(): GameStateUiState{
+suspend fun GameStateModel.toUiState(): Pair<GameMode, GameStateUiState>{
     val gameMode = this.gameMode.toUiGameMode()
-    val board = this.board.toUiBoard(gameMode.lineLength)
-    val queue = this.queue.toUiQueue()
-    val score = this.score.toUiScore()
-    val availableLines = board.getAllAvailableLinesOnBoard(gameMode.isWinCondition)
-    return GameStateUiState(
-        gameMode = gameMode,
-        board = board,
-        queue = queue,
-        score = score,
-        availableLines = availableLines,
-        reloadsLeft = this.reloadsLeft,
-        isBlocked = this.isBlocked,
+    return Pair(
+        gameMode,
+        GameStateUiState(
+            reloadsLeft = this.reloadsLeft,
+            queue = this.queue.toUiQueue(),
+            board = this.board.toUiBoard(gameMode.lineLength),
+            score = this.score.toUiScore(),
+        )
     )
 }
 
-private fun Int.toUiGameMode(): GameMode {
-    return when(this){
-        GAME_MODE_EASY_ADD -> GameMode.EasyAddGameMode
-        GAME_MODE_HARD_MULTIPLY -> GameMode.HardMultiplyGameMode
-        else -> GameMode.EasyAddGameMode
+private fun Int.toUiGameMode(): GameMode = try{
+        GAME_MODES[this]
+    }catch (e: IndexOutOfBoundsException){ //Impossible case
+        GAME_MODES.first()?: GameMode.EasyAdd
     }
-}
 
-private fun List<Int>.toUiBoard(boardSize: Int): Set<BoardNumberBox> {
-    return this.mapIndexed {index, value ->
-        BoardNumberBox(
-            number = value.toUiNumberBox(),
-            position = BoardPosition(
-                column = index / boardSize,
-                row = index % boardSize,
-            )
-        )
-    }.toSet()
-}
+private fun List<Int>.toUiBoard(boardSize: Int): Map<BoardPosition, NumberBox> =
+    this.mapIndexed {index, value ->
+        BoardPosition(
+            column = index % boardSize,
+            row = index / boardSize,
+        ).let{ positionKey ->
+            positionKey to value.toUiNumberBox()
+        }
+    }.toMap()
 
-private fun List<Int>.toUiQueue(): List<NumberBox> {
-    return this.map { value ->
+
+private fun List<Int>.toUiQueue(): List<NumberBox> =
+    this.map { value ->
         value.toUiNumberBox()
     }.toMutableList()
-}
 
-private fun Int.toUiNumberBox(): NumberBox{
-    val type = this / INTERVAL_TYPE
-    return when (type){
-        NUMBER_TYPE_REGULAR -> NumberBox.RegularBox(
-            value = this
-        )
-        NUMBER_TYPE_BLOCK -> NumberBox.BlockBox(
-            value = this - (NUMBER_TYPE_BLOCK * INTERVAL_TYPE)
-        )
-        NUMBER_TYPE_STAR -> NumberBox.StarBox()
-        else -> NumberBox.RegularBox(
-            value = this % INTERVAL_TYPE
-        )
+private fun Int.toUiNumberBox(): NumberBox =
+    (this / INTERVAL_TYPE).let{ type ->
+        when (type){
+            NUMBER_TYPE_REGULAR -> NumberBox.RegularBox(
+                value = this
+            )
+            NUMBER_TYPE_BLOCK -> NumberBox.BlockBox(
+                value = this - (NUMBER_TYPE_BLOCK * INTERVAL_TYPE)
+            )
+            NUMBER_TYPE_GOLDEN_STAR -> NumberBox.GoldenStarBox()
+            NUMBER_TYPE_SILVER_STAR -> NumberBox.SilverStarBox()
+            else -> NumberBox.RegularBox(
+                value = this % INTERVAL_TYPE
+            )
+        }
     }
-}
 
-private fun ScoreModel.toUiScore(): Score {
-    return Score(
+private fun ScoreModel.toUiScore(): Score = Score(
         points = this.points,
-        lines = this.lines
+        lines = this.lines,
+        turns = this.turns,
     )
-}
-
-
-
-
-
-
-
-
-
 
 
 //Extensions for mapping from Domain/UI to Model
-fun GameStateUiState.toModel(): GameStateModel {
-    val gameModeInt = when (this.gameMode) {
-        is GameMode.EasyAddGameMode -> GAME_MODE_EASY_ADD
-        is GameMode.HardMultiplyGameMode -> GAME_MODE_HARD_MULTIPLY
-    }
-    return GameStateModel(
-        gameMode = gameModeInt,
-        //board
-        //queue
-        //score
-        reloadsLeft = this.reloadsLeft
-    )
-}
+fun createGameStateModelFromUIFields(
+    gameModeId: Int,
+    board: Map<BoardPosition, NumberBox>,
+    queue: List<NumberBox>,
+    score: Score,
+    reloadsLeft: Int,
+): GameStateModel = GameStateModel(
+    gameMode = gameModeId,
+    board = board.toModelBoard(),
+    queue = queue.toModelQueue(),
+    score = score.toModelScore(),
+    reloadsLeft = reloadsLeft,
+)
 
-fun NumberBox.toModel(): Int{
-    return when(this){
-        is NumberBox.RegularBox -> this.value
-        is NumberBox.BlockBox -> NUMBER_TYPE_BLOCK * INTERVAL_TYPE + this.value
-        is NumberBox.StarBox -> NUMBER_TYPE_STAR * INTERVAL_TYPE
+private fun Map<BoardPosition, NumberBox>.toModelBoard(): List<Int> =
+    this.keys.sorted().let{ sortedPositions ->
+        mutableListOf<Int?>().also{ resultList ->
+            sortedPositions.forEach{ position ->
+                resultList.add(this[position]?.toModelBox())
+            }
+        }.filterNotNull()
     }
+
+private fun List<NumberBox>.toModelQueue(): List<Int> = this.map{ it.toModelBox() }
+
+private fun Score.toModelScore(): ScoreModel = ScoreModel(
+    points = this.points,
+    turns = this.turns,
+    lines = this.lines,
+)
+
+private fun NumberBox.toModelBox(): Int{
+    //TODO There shouldn't be EmptyBox on board
+    if(this is NumberBox.EmptyBox) return 0 //RegularBox value 0
+
+    val boxValue = if(this is NumberBox.StarBox){
+        0
+    }else{
+        this.value
+    }
+    return when(this){
+        is NumberBox.BlockBox -> NUMBER_TYPE_BLOCK
+        is NumberBox.GoldenStarBox -> NUMBER_TYPE_GOLDEN_STAR
+        is NumberBox.SilverStarBox -> NUMBER_TYPE_SILVER_STAR
+        else -> NUMBER_TYPE_REGULAR
+    } * INTERVAL_TYPE + boxValue
 }
 
 

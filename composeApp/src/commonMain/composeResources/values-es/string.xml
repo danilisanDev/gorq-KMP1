@@ -3,6 +3,11 @@
     <string name="reloadBtn">Recargar \n%1$s (x%2$d)</string>
     <string name="boardTag">tablero</string>
     <string name="queueTag">reserva</string>
+    <string name="trillion">B</string>
+    <string name="thousandSeparator">.</string>
+    <string name="score">Puntos</string>
+    <string name="lines">Líneas</string>
+    <string name="turns">Turnos</string>
     <string name="displayMsgEasyMode">Suma números hasta 7 o 17</string>
     <string name="displayMsgHardMode">Forma un múltiplo de 7 o 17</string>
 </resources>

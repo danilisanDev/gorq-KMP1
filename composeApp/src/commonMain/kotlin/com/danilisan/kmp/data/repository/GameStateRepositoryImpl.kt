@@ -1,21 +1,23 @@
 package com.danilisan.kmp.data.repository
 
+import com.danilisan.kmp.core.provider.DispatcherProvider
+import com.danilisan.kmp.core.provider.ProductionDispatcherProvider
 import com.danilisan.kmp.data.datasource.GameStateDataSource
 import com.danilisan.kmp.data.datasource.local.GameStateSettingsDataSource
 import com.danilisan.kmp.data.model.GameStateModel
 import com.danilisan.kmp.domain.repository.GameStateRepository
+import kotlinx.coroutines.withContext
 
 class GameStateRepositoryImpl(
-    dataSource: GameStateSettingsDataSource
+    dataSource: GameStateSettingsDataSource,
 ): GameStateRepository{
     override val dataSources: List<GameStateDataSource> = listOf(dataSource)
 
-    override fun getElement(): GameStateModel? {
-        val model: GameStateModel? = dataSources.first().loadData()
-        return model
+    override suspend fun getElement(): GameStateModel? {
+        return dataSources.first().loadData()
     }
 
-    override fun updateElement(element: GameStateModel) {
+    override suspend fun updateElement(element: GameStateModel) {
         dataSources.first().saveData(element)
     }
 }

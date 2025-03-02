@@ -1,320 +1,280 @@
 package com.danilisan.kmp.domain.entity
 
-import kotlinx.coroutines.Deferred
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.withContext
+import com.danilisan.kmp.domain.entity.BoardHelper.GAME_MODES
+import com.danilisan.kmp.domain.entity.NumberBox.Companion.EMPTY_VALUE
+import com.danilisan.kmp.ui.state.GameModeState
+import io.github.aakira.napier.Napier
+import kotlinproject.composeapp.generated.resources.Res
+import kotlinproject.composeapp.generated.resources.displayMsgAddNumbers
+import kotlinproject.composeapp.generated.resources.displayMsgMultiplyNumbers
+import kotlinproject.composeapp.generated.resources.easyAddMode
+import kotlinproject.composeapp.generated.resources.icon_easyaddmode
+import kotlinproject.composeapp.generated.resources.icon_multiplymode
+import kotlinproject.composeapp.generated.resources.multiplyMode
+import org.jetbrains.compose.resources.DrawableResource
+import org.jetbrains.compose.resources.StringResource
 
 sealed class GameMode {
-    //Pool generation rule (FINAL)
-    val getNumberPool: () -> NumberPool = {
-        val pool: MutableList<Int> = mutableListOf()
-        for (i in 2..lineLength) {
-            pool += regularNumbers
-        }
-        pool.shuffle()
-        NumberPool(pool)
-    }
+    //Common values
+    protected val boxNumbers: IntRange = (0..9)
+    val turnsForStar: Int = 10
+    val maxStars: Int = 3
 
-    //Default values
+    //Mode dependent values
+    abstract val modeName: StringResource
+    abstract val icon: DrawableResource
+
+    //Default overriddable variables
     open val regularNumbers: Set<Int> = (0..7).toSet()
-    open val blockNumbers: Set<Int> = setOf(8, 9)
-    open val goalValues: Set<Int> = setOf(7, 17)
+    open val numberRepetitions: Int = 2
+    open val blockNumbers: List<Int> = listOf(8, 9)
     open val lineLength: Int = 3
+    open val queueSize: Int = 3
+    open val minSelection: Int = 2
+    open val maxSelection: Int = 3
     open val initialReloads: Int = 7
+    open val reloadQueueCost: Int = -1
+    open val reloadBoardCost: Int = -2
+    open val generateBlocksOnQueue: Boolean = true
+    open val readyDisplayMessage: StringResource = Res.string.displayMsgAddNumbers
+    open val selectedNumbersSeparator = " + "
 
-    //Default lambda functions
-    open val getNeededNumbers: suspend (List<Int>) -> List<Int> = { lineValues ->
-        val sum = lineValues.sum()
-        for (goal in goalValues.sorted()) {
-            val result = goal - sum
-            if (result >= 0) {
-                listOf(result)
+    fun getBoardSize(): Int = lineLength * lineLength
+    private fun getModeId(): Int = GAME_MODES.indexOf(this)
+    fun getGameModeState(): GameModeState =
+        GameModeState(
+            getModeId(), icon,
+            reloadBoardCost * -1,
+            reloadQueueCost * -1
+        )
+
+    //region WIN CONDITION RULE
+    protected open val goalValues: Set<Int> = setOf(7, 17)
+    fun getGoalValuesToString(): String = goalValues.joinToString(" | ")
+
+    //Public common methods
+    suspend fun isWinCondition(lineValues: List<Int>): Boolean =
+        getWinConditionPoints(lineValues) > 0
+
+    suspend fun getWinConditionPoints(lineValues: List<Int>): Int =
+        calculatePointsByGameMode(lineValues) ?: 0
+
+    protected open suspend fun calculatePointsByGameMode(lineValues: List<Int>): Int? =
+        lineValues.sum().takeIf { it in goalValues }
+
+    suspend fun getWinConditionNumbers(lineValues: List<Int>): Set<Int> =
+        lineValues
+            .takeIf { list ->
+                list.size == lineLength && list.count { it == EMPTY_VALUE } == 1
             }
-        }
-        listOf()
-    }
-    open val isWinCondition: suspend (List<Int>) -> Boolean = { lineValues ->
-        goalValues.contains(lineValues.sum())
-    }
-
-    private suspend fun getPartialPool(pool: NumberPool, isEven: Boolean): List<Int> {
-        val parityPool: Deferred<List<Int>>
-        withContext(Dispatchers.Default){
-            parityPool = async {
-                pool.getPartialPool(
-                    parityEven = isEven
+            ?.let { list ->
+                getNeededNumbers(list)
+            }
+            ?: run {
+                Napier.d(
+                    message = """Cannot get win condition numbers because 
+                    line length doesn't match board size AND/OR 
+                    line does not have one and only one empty value. 
+                    Returning empty set."""
                 )
-            }
-        }
-        return parityPool.await()
-    }
-
-    private sealed class boardDisposition{
-        protected suspend fun generateDisposition(vararg positions: POSITION): List<BoardPosition>{
-            val result = mutableListOf<Deferred<BoardPosition>>()
-            withContext(Dispatchers.Default){
-                for(position in positions){
-                    result.add(async {
-                        getBoardPosition(position)
-                    })
-                }
-            }
-            return result.awaitAll()
-        }
-        abstract suspend fun getEvenBoardPositionsList(): List<BoardPosition>
-        abstract suspend fun getOddBoardPositionsList(): List<BoardPosition>
-
-
-        object CROSS: boardDisposition(){
-            override suspend fun getEvenBoardPositionsList(): List<BoardPosition> {
-                return generateDisposition(
-                    POSITION.TOP, POSITION.LEFT, POSITION.RIGHT,
-                    POSITION.CENTER, POSITION.BOTTOM
-                )
+                emptySet()
             }
 
-            override suspend fun getOddBoardPositionsList(): List<BoardPosition> {
-                return generateDisposition(
-                    POSITION.TOP_LEFT, POSITION.TOP_RIGHT,
-                    POSITION.BOTTOM_LEFT, POSITION.BOTTOM_RIGHT
-                )
-            }
-        }
-        object LEFT_RIGHT: boardDisposition(){
-            override suspend fun getEvenBoardPositionsList(): List<BoardPosition> {
-                return generateDisposition(
-                    POSITION.TOP_LEFT, POSITION.CENTER, POSITION.BOTTOM_RIGHT
-                )
-            }
-            override suspend fun getOddBoardPositionsList(): List<BoardPosition> {
-                return generateDisposition(
-                    POSITION.TOP, POSITION.TOP_RIGHT,
-                    POSITION.LEFT,POSITION.RIGHT,
-                    POSITION.BOTTOM_LEFT, POSITION.BOTTOM
-                )
-            }
-        }
-        object RIGHT_LEFT: boardDisposition() {
-            override suspend fun getEvenBoardPositionsList(): List<BoardPosition> {
-                return generateDisposition(
-                    POSITION.BOTTOM_LEFT, POSITION.CENTER, POSITION.TOP_RIGHT
-                )
-            }
-            override suspend fun getOddBoardPositionsList(): List<BoardPosition> {
-                return generateDisposition(
-                    POSITION.TOP_LEFT, POSITION.TOP,
-                    POSITION.LEFT,POSITION.RIGHT,
-                    POSITION.BOTTOM, POSITION.BOTTOM_RIGHT
-                )
-            }
-        }
 
-        private enum class POSITION {
-            TOP_LEFT, TOP, TOP_RIGHT,
-            LEFT, CENTER, RIGHT,
-            BOTTOM_LEFT, BOTTOM, BOTTOM_RIGHT
-        }
-
-        private suspend fun getBoardPosition(position: POSITION): BoardPosition{
-            return when(position){
-                POSITION.TOP_LEFT -> BoardPosition(0,0)
-                POSITION.TOP -> BoardPosition(1,0)
-                POSITION.TOP_RIGHT -> BoardPosition(2,0)
-                POSITION.LEFT -> BoardPosition(0,1)
-                POSITION.CENTER -> BoardPosition(1,1)
-                POSITION.RIGHT -> BoardPosition(2,1)
-                POSITION.BOTTOM_LEFT -> BoardPosition(0,2)
-                POSITION.BOTTOM -> BoardPosition(1,2)
-                POSITION.BOTTOM_RIGHT -> BoardPosition(2,2)
+    //Game dependent inner method
+    protected open suspend fun getNeededNumbers(lineValues: List<Int>): Set<Int> =
+        lineValues.filterNot { it == EMPTY_VALUE }.sum()
+            .let { sum ->
+                goalValues
+                    .map { goal -> goal - sum }
+                    .filter { it in boxNumbers  || it < 0}
+                    .toSet()
             }
-        }
-    }
+    //endregion
 
-    open val generateNewBoardRule: suspend (NumberPool) -> Set<BoardNumberBox> = { pool ->
-        //Pools by parity
-        val evenPool: List<Int> = getPartialPool(pool, true)
-        val oddPool: List<Int> = getPartialPool(pool, false)
+    //Condition for a golden Star
+    open suspend fun isGoldenStar(points: Long): Boolean =
+        (points % 100).toInt() in goalValues
 
-        //Random boardDisposition
-        val disposition: boardDisposition = listOf(
-            boardDisposition.CROSS,
-            boardDisposition.LEFT_RIGHT,
-            boardDisposition.RIGHT_LEFT).random()
-        val evenList: List<BoardPosition> = disposition.getEvenBoardPositionsList()
-        val oddList: List<BoardPosition> = disposition.getOddBoardPositionsList()
+    //Line action results
+    open suspend fun getPointsForLines(lines: Int): Int =
+        (1..lines).fold(0){acc, i -> acc + i * 100}
 
-        //Number distribution with coroutines
-        val result = mutableSetOf<Deferred<BoardNumberBox>>()
-        withContext(Dispatchers.Default){
-            for(i in evenList.indices){
-                result.add(async {
-                    BoardNumberBox(
-                        number = NumberBox.RegularBox(
-                            value = evenPool[i]
-                        ),
-                        position = evenList[i]
-                    )
-                })
-            }
-            for(i in oddList.indices){
-                result.add(async {
-                    BoardNumberBox(
-                        number = NumberBox.RegularBox(
-                            value = oddPool[i]
-                        ),
-                        position = oddList[i]
-                    )
-                })
-            }
+    open suspend fun getReloadIncrementForLines(lines: Int): Int =
+        (lines - 1).takeIf{ it > 0 }?: 0
 
-        }
-        val finalResult = result.awaitAll()
-        finalResult.toSet()
-    }
+    open suspend fun getPointsForBingo(): Int = getPointsForLines(17)
+    open suspend fun getReloadIncrementForBingo(): Int = 7
 
-    open val generateNewQueueRule: suspend (NumberPool) -> List<NumberBox> = { pool ->
-        //Pools by parity
-        val isEven: Boolean = pool.areMoreEvenNumbers()
-        val pool1: List<Int> = getPartialPool(pool,isEven)
-        val pool2: List<Int> = getPartialPool(pool,!isEven)
-
-        //Number distribution with coroutines
-        val result = mutableListOf<Deferred<NumberBox>>()
-        val numbersFromPool2: Int = lineLength / 2
-        val numbersFromPool1: Int = lineLength - numbersFromPool2
-        withContext(Dispatchers.Default){
-            for(i in 0..<numbersFromPool1){
-                result.add( async{
-                    NumberBox.RegularBox(
-                        value = pool1[i]
-                    )
-                })
-            }
-            for(i in 0..<numbersFromPool2){
-                result.add( async{
-                    NumberBox.RegularBox(
-                        value = pool2[i]
-                    )
-                })
-            }
-        }
-        result.awaitAll().shuffled()
-    }
-
-    /**
-     * IsAnySelectionUseCase(
-     *      boardNumbers: List<Int>,
-     *      lineLength: Int,
-     *      isWinCondition (List<Int>) -> Boolean)
-     *
-     * val index = 0
-     *     val listSize = list.size -1
-     *     var operands: MutableList<Int>
-     *     var sum: Int
-     * 	for(i in 0..listSize - 1){//Primer operando
-     *         var firstOperand = list[i]
-     *         val secondIndex = i + 1
-     *         for(j in secondIndex..listSize){
-     *             var secondOperand = list[j]
-     *             operands = mutableListOf(firstOperand,secondOperand)
-     *             val found = isWinCondition(operands)
-     *             println("${operands.joinToString("")} - $found")
-     *             if(found){
-     *                 return true
-     *             }
-     *             val thirdIndex = j + 1
-     *             for(k in thirdIndex..listSize){
-     *                 var thirdOperand = list[k]
-     *                 operands = mutableListOf(firstOperand, secondOperand, thirdOperand)
-     *                 val found2 = isWinCondition(operands)
-     *             	println("${operands.joinToString("")} - $found2")
-     *             	if(found2){
-     *                 	return true
-     *             	}
-     *             }
-     *         }
-     * 	}
-     *     return false
-     *
-     *
+    /** TODO Traducir
+     * Modo de juego con tablero 3x3 y reserva de 3 numeros.
+     * Las casillas regulares aleatorias tienen valores entre 0 y 7.
+     * La cola se rellena con bloques de valor 8 o 9.
+     * * La seleccion ha de ser de entre 2-3 numeros.
+     * La condicion de victoria es sumar 7 o 17.
      */
-
-    open val getDisplay: suspend (List<Int>) -> String = { lineValues ->
-        lineValues.joinToString(separator = " + ")
+    data object EasyAdd : GameMode(){
+        override val modeName = Res.string.easyAddMode
+        override val icon = Res.drawable.icon_easyaddmode
     }
-
-    object EasyAddGameMode : GameMode() {
-        //Default gameMode
-    }
-
-    object HardMultiplyGameMode : GameMode() {
-        override val regularNumbers = (0..9).toSet()
-        override val blockNumbers = setOf(9)
-
-        //lineLength = DEFAULT
-        //initialReloads = DEFAULT
-
-        override val getNeededNumbers: suspend (List<Int>) -> List<Int> = { lineValues ->
-            /*
-                    val index = numbers.indexOf(-1) == 2;
-                    when(index){
-                        V: (7/17) F: ((3V - 1) / 10)
-                        0 [Xyz]
-                            x = ((y - Fz) * F) % V
-                        1 [xYz]
-                            y = (z * F) - (10x % V)
-                        2 [xyZ]
-                            z = V - ((100x + 10y) % V)
+    //Default values and functions
 
 
-                    }
-                 */
-            val neededNumbers: MutableList<Int> = mutableListOf()
-            val pos = lineValues.indexOf(-1)
-            println("Posición buscada: $pos")
-            val v = 7 //17
-            val f = 2 //5
-            val x = lineValues[0]
-            val y = lineValues[1]
-            val z = lineValues[2]
-            val desired = when (pos) {
-                0 -> ((y - f * z) * f) % v
-                1 -> (z * f) - (x * 10 % v)
-                2 -> v - ((x * 100 + y * 10) % v)
-                else -> -1
+    /** TODO Traducir
+     * Modo de juego con tablero 3x3 y reserva de 3 numeros.
+     * Las casillas regulares aleatorias pueden tener cualquier valor.
+     * La cola se rellena con bloques de valor 9.
+     * La seleccion ha de ser de entre 2-3 numeros.
+     * La condicion de victoria es formar multiplos 7 o 17.
+     */
+    data object HardMultiply : GameMode() {
+        override val modeName = Res.string.multiplyMode
+        override val icon = Res.drawable.icon_multiplymode
+        override val regularNumbers = boxNumbers.toSet()
+        override val blockNumbers = listOf(9)
+
+        //numberRepetitions = 2
+        //lineLength = 3
+        //queueSize = 3
+        //minSelection = 2
+        //initialReloads = 7
+        //reloadQueueCost: Int = 1
+        //reloadBoardCost: Int = 2
+        //generateBlocksOnQueue: Boolean = true
+        override val readyDisplayMessage = Res.string.displayMsgMultiplyNumbers
+        override val selectedNumbersSeparator = ""
+
+        override suspend fun calculatePointsByGameMode(lineValues: List<Int>): Int? =
+            lineValues
+                .joinToString("")
+                .toIntOrNull()
+                ?.takeIf{ it > 0 }
+                ?.let { result ->
+                    goalValues
+                        .filter{ result % it == 0}
+                        .maxOrNull()
+                }
+
+        override suspend fun getNeededNumbers(lineValues: List<Int>): Set<Int> =
+            goalValues.flatMap { calculateEmptyValueForMultiple(it, lineValues) }.toSet()
+
+        private suspend fun calculateEmptyValueForMultiple(
+            goalValue: Int,
+            lineValues: List<Int>,
+        ): Set<Int> {
+            val factor = ((3 * goalValue - 1) / 10) //7 -> 2 // 17 -> 5
+            val hundreds = lineValues[0] % goalValue
+            val tens = lineValues[1] % goalValue
+            val units = lineValues[2] % goalValue
+
+            return when (EMPTY_VALUE) {
+                hundreds -> calculateHundredsValueForMultiple(factor, tens, units)
+                tens -> calculateTensValueForMultiple(factor, hundreds, units)
+                units -> calculateUnitsValueForMultiple(hundreds, tens)
+                else -> null
             }
-            println("Número deseado: $desired")
-            if (desired in lineValues) {
-                neededNumbers += desired
-            }
-            if (desired < 3) {
-                neededNumbers += desired + 7
-            }
-            if (desired > 6) {
-                neededNumbers += desired - 7
-            }
-
-            neededNumbers
+                ?.let { result ->
+                    getPossibleNumbersSet(result, goalValue)
+                }
+                ?: run {
+                    Napier.d(message = "There is not empty value on this line")//Innecesario
+                    emptySet()
+                }
         }
 
+        private fun calculateHundredsValueForMultiple(
+            factor: Int,
+            tens: Int,
+            units: Int,
+        ): Int = factor * (tens - factor * units)
 
-        override val isWinCondition: suspend (List<Int>) -> Boolean = { lineValues ->
-            if (lineValues.isEmpty()) {
-                false
-            } else {
-                val result = lineValues.joinToString().toInt()
-                goalValues.any { value -> result % value == 0 }
+        private fun calculateTensValueForMultiple(
+            factor: Int,
+            hundreds: Int,
+            units: Int,
+        ): Int = units * factor - hundreds * 10
+
+        private fun calculateUnitsValueForMultiple(
+            hundreds: Int,
+            tens: Int,
+        ): Int = -(hundreds * 100 + tens * 10)
+
+        private fun getPossibleNumbersSet(
+            result: Int,
+            goalValue: Int,
+        ): Set<Int> = mutableSetOf<Int>().also { numberSet ->
+            var nextNumber = result % goalValue
+            while (nextNumber <= boxNumbers.max()) {
+                if (nextNumber in boxNumbers) {
+                    numberSet.add(nextNumber)
+                }
+                nextNumber += goalValue
             }
         }
 
-        override val getDisplay: suspend (List<Int>) -> String = { lineValues ->
-            lineValues.joinToString(separator = "")
-        }
-
-
+        override suspend fun isGoldenStar(points: Long): Boolean = true
     }
-
-
 }
+
+    /** TODO Traducir
+     * Modo de juego con tablero 4x4 y reserva de 4 numeros.
+     * Las casillas regulares aleatorias pueden tener cualquier valor.
+     * La cola se rellena con bloques de cualquier valor.
+     * La seleccion ha de ser de entre 2-4 numeros.
+     * La condición de victoria es sumar 11 o 21
+     *
+    data object JumboAdd : GameMode(){
+        override val regularNumbers: Set<Int> = boxNumbers.toSet()
+        override val blockNumbers: Set<Int> = regularNumbers
+        override val goalValues: Set<Int> = setOf(11,21)
+        override val boardSize: Int = 4
+        override val queueSize: Int = 4
+        override val maxSelection: Int = 4
+        override val numberRepetitions: Int = 3
+
+        //minSelection = 2
+        //initialReloads = 7
+        //reloadQueueCost: Int = 1
+        //reloadBoardCost: Int = 2
+        //generateBlocksOnQueue: Boolean = true
+
+        //isWinCondition = DEFAULT
+        //getWinConditionNumbers = DEFAULT
+        //isGoldenStar = DEFAULT
+
+    }
+}
+
+/** TODO Traducir
+ * Modo de juego con tablero 3x3 y reserva de 1 numero.
+ * Las casillas regulares aleatorias pueden tener cualquier valor.
+ * La cola se rellena con casillas regulares de cualquier valor.
+ * La seleccion ha de ser de 3 numeros. (¿2 o 3?)
+ * **El exceso de la cola se cubre con casillas regulares aleatorias.**
+ * **No hay recargas** ???
+ * La condición de victoria es sumar 7 o 17
+ *
+data object BlindMode : GameMode(){
+    override val regularNumbers: Set<Int> = boxNumbers.toSet()
+    override val blockNumbers: Set<Int> = regularNumbers
+    override val queueSize: Int = 1
+    override val minSelection: Int = 3
+}
+
+/** TODO Traducir
+ * Modo de juego con tablero 5x5 y reserva de 1 numero.
+ * Las casillas regulares aleatorias pueden tener cualquier valor.
+ * La cola se rellena con casillas regulares de cualquier valor.
+ * La seleccion ha de ser de entre 1-3 numeros. (¿?)
+ * **El exceso de la cola se cubre con casillas regulares de valor 0.**
+ * **No hay recargas**
+ * La condición de victoria es sumar 7 o 17
+ *
+data object VoidMode : GameMode(){
+    override val regularNumbers: Set<Int> = boxNumbers.toSet()
+    override val blockNumbers: Set<Int> = setOf(0)
+    override val queueSize: Int = 1
+    override val minSelection: Int = 1
+    override val maxSelection: Int = 3
+}
+*/
