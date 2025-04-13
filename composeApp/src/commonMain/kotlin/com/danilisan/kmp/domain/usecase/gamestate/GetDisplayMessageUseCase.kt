@@ -1,7 +1,14 @@
 package com.danilisan.kmp.domain.usecase.gamestate
 
+import androidx.compose.ui.text.font.FontWeight
 import com.danilisan.kmp.core.provider.DispatcherProvider
 import com.danilisan.kmp.domain.entity.DisplayMessage
+import com.danilisan.kmp.domain.entity.DisplayMessage.Companion.DISPLAY_TEXT_ERROR
+import com.danilisan.kmp.domain.entity.DisplayMessage.Companion.DISPLAY_TEXT_GOLDEN
+import com.danilisan.kmp.domain.entity.DisplayMessage.Companion.DISPLAY_TEXT_PRIMARY
+import com.danilisan.kmp.domain.entity.DisplayMessage.Companion.DISPLAY_TEXT_SECONDARY
+import com.danilisan.kmp.domain.entity.DisplayMessage.Companion.DISPLAY_TEXT_SELECTED
+import com.danilisan.kmp.domain.entity.DisplayMessage.Companion.DISPLAY_TEXT_SUCCESS
 import com.danilisan.kmp.domain.entity.GameMode
 import com.danilisan.kmp.domain.usecase.UseCase
 import com.danilisan.kmp.ui.state.BoardState
@@ -20,11 +27,34 @@ class GetDisplayMessageUseCase(
         selectedNumbers: List<Int> = emptyList(),
     ):DisplayMessage = withContext(dispatcher.default) {
         when (boardState) {
-            BoardState.BLOCKED -> DisplayMessage(res = Res.string.displayMsgNoMoves)
-            BoardState.BINGO -> DisplayMessage(res = Res.string.displayMsgBingo)
-            BoardState.GAMEOVER -> DisplayMessage(res = Res.string.displayMsgGameOver)
+            BoardState.BLOCKED -> DisplayMessage(
+                res = Res.string.displayMsgNoMoves,
+                highlightColor = DISPLAY_TEXT_SECONDARY,
+                bgColor = DISPLAY_TEXT_ERROR,
+                weight = FontWeight.SemiBold,
+                sizeDiff = 2,
+            )
+            BoardState.BINGO -> DisplayMessage(
+                res = Res.string.displayMsgBingo,
+                highlightColor = DISPLAY_TEXT_GOLDEN,
+                bgColor = DISPLAY_TEXT_SUCCESS,
+                weight = FontWeight.ExtraBold,
+                sizeDiff = 3,
+            )
+            BoardState.GAMEOVER -> DisplayMessage(
+                res = Res.string.displayMsgGameOver,
+                highlightColor = DISPLAY_TEXT_PRIMARY,
+                bgColor = DISPLAY_TEXT_SECONDARY,
+                weight = FontWeight.Bold,
+                sizeDiff = 1,
+            )
             BoardState.READY -> if (selectedNumbers.isNotEmpty()) {
-                DisplayMessage(arg = selectedNumbers.joinToString(gameMode.selectedNumbersSeparator))
+                DisplayMessage(
+                    arg = selectedNumbers.joinToString(gameMode.selectedNumbersSeparator),
+                    highlightColor = DISPLAY_TEXT_SELECTED,
+                    weight = FontWeight.Bold,
+                    sizeDiff = 2
+                )
             } else {
                 DisplayMessage(
                     res = gameMode.readyDisplayMessage,

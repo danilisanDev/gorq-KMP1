@@ -12,6 +12,7 @@ class AddBoxOnQueueUseCase(
         currentQueue: List<NumberBox>,
         newBox: NumberBox,
         queueSize: Int,
+        replaceLast: Boolean = false,
     ): List<NumberBox> = withContext(dispatcher.default) {
         if (queueSize <= 0) {//Impossible case but in order to avoid IndexOutOfBoundsException
             emptyList()
@@ -19,11 +20,15 @@ class AddBoxOnQueueUseCase(
             currentQueue
                 .toMutableList()
                 .apply {
-                    if (size >= queueSize) {
-                        removeAt(index = 0)
-                        retainAll(take(queueSize - 1))
+                    if(replaceLast && isNotEmpty()){
+                        this[lastIndex] = newBox
+                    }else{
+                        if (size >= queueSize) {
+                            removeAt(index = 0)
+                            retainAll(take(queueSize - 1))
+                        }
+                        add(newBox)
                     }
-                    add(newBox)
                 }
         }
     }

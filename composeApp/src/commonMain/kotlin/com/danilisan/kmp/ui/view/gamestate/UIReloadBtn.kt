@@ -32,9 +32,14 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.danilisan.kmp.ui.state.BoardState
 import com.danilisan.kmp.ui.theme.Theme
-import com.danilisan.kmp.ui.theme.withAlpha
+import com.danilisan.kmp.ui.view.combineOver
+import com.danilisan.kmp.ui.view.withAlpha
 import kotlinproject.composeapp.generated.resources.Res
+import kotlinproject.composeapp.generated.resources.bingoButton
+import kotlinproject.composeapp.generated.resources.gameOverButton
 import kotlinproject.composeapp.generated.resources.refresh
+import kotlinproject.composeapp.generated.resources.reloadMultiplierButton
+import org.jetbrains.compose.resources.stringResource
 import org.jetbrains.compose.resources.vectorResource
 
 @Composable
@@ -96,7 +101,7 @@ fun UIReloadButton(
                     )
                 }else{
                     TextStyle(
-                        color = properties.borderColor
+                        color = properties.textColor
                     )
                 }
                 Text(
@@ -142,9 +147,9 @@ private fun getProperties(
                 Theme.colors.secondary.withAlpha(0.4f)
             },
             hasIcon = true,
-            text = "x${reloadCost}",
+            text = stringResource(Res.string.reloadMultiplierButton) + "$reloadCost",
             textColor = if(isEnabled){
-                Theme.colors.secondary.withAlpha(0.7f)
+                Theme.colors.secondary.withAlpha(0.9f)
             }else{
                 Theme.colors.secondary.withAlpha(0.4f)
             }
@@ -154,24 +159,28 @@ private fun getProperties(
             primaryColor = Theme.colors.success,
             borderColor = Theme.colors.display,
             hasIcon = false,
-            text = "¡BINGO!",
+            text = stringResource(Res.string.bingoButton),
             textColor = Theme.colors.display
         )
         BoardState.BLOCKED -> ReloadBtnProperties(
             shape = Theme.shapes.hardBlockShape,
-            primaryColor = Theme.colors.error,
-            borderColor = Theme.colors.primary,
+            primaryColor = Theme.colors.secondary
+                .combineOver(
+                    other = Theme.colors.primary,
+                    alpha = 0.4f
+                ),
+            borderColor = Theme.colors.error,
             hasIcon = true,
-            text = "x${reloadCost}",
+            text = stringResource(Res.string.reloadMultiplierButton) + "$reloadCost",
             textColor = Theme.colors.primary
         )
         BoardState.GAMEOVER -> ReloadBtnProperties(
             shape = Theme.shapes.hardBlockShape,
-            primaryColor = Theme.colors.secondary.withAlpha(0.3f),
-            borderColor = Theme.colors.error,
+            primaryColor = Theme.colors.primary.withAlpha(0.8f),
+            borderColor = Theme.colors.secondary,
             hasIcon = false,
-            text = "X",
-            textColor = Theme.colors.primary
+            text = stringResource(Res.string.gameOverButton),
+            textColor = Theme.colors.secondary
         )
     }
 }

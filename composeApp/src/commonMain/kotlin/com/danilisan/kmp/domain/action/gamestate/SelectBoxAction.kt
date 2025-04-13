@@ -1,6 +1,7 @@
 package com.danilisan.kmp.domain.action.gamestate
 
 import com.danilisan.kmp.core.provider.DispatcherProvider
+import com.danilisan.kmp.domain.action.gamestate.GameStateActionManager.Companion.TOTAL_ACTION_DELAY
 import com.danilisan.kmp.domain.entity.BoardPosition
 import com.danilisan.kmp.domain.entity.GameMode
 import com.danilisan.kmp.domain.usecase.gamestate.GetDisplayMessageUseCase
@@ -11,8 +12,7 @@ import kotlinx.coroutines.withContext
 class SelectBoxAction(
     override val dispatcher: DispatcherProvider,
     private val getDisplayMessageUseCase: GetDisplayMessageUseCase,
-
-    private val completeSelectionAction: CompleteSelectionAction,
+    private val updateGameAction: UpdateGameAction,
 ) : GameStateAction {
     override suspend operator fun invoke(
         getState: suspend () -> GameStateUiState,
@@ -62,59 +62,38 @@ class SelectBoxAction(
         }
 
         //Check win condition
-        gameMode.getWinConditionPoints(selectedValues).let { selectionPoints ->
-            val isWinCondition = selectionPoints > 0
-            if (isWinCondition) {
-                if(selectionSize < gameMode.maxSelection){
-                    updateStateFields(getState, updateState,
-                        incompleteSelection = true)
-                    delay(1000)
-                    if(!getState().incompleteSelection){
-                        return@withContext
-                    }else{
-                        updateStateFields(getState, updateState,
-                            incompleteSelection = false)
-                    }
-                }else{
-                    delay(1000)
-                }
-                completeSelectionAction(getState,updateState,gameMode,
-                    params = selectionPoints)
-            } else if (selectionSize >= gameMode.maxSelection) {
-                delay(500)
-                //Empty selected numbers
+        if(gameMode.isWinCondition(selectedValues)){
+            if (selectionSize < gameMode.maxSelection) {
                 updateStateFields(
                     getState, updateState,
-                    selectedPositions = emptyList(),
-                    displayMessage = getDisplayMessageUseCase(
-                        boardState = currentBoardState,
-                        gameMode = gameMode,
-                    )
+                    incompleteSelection = true
                 )
+                delay(TOTAL_ACTION_DELAY)
+                if (!getState().incompleteSelection) {
+                    return@withContext
+                } else {
+                    updateStateFields(
+                        getState, updateState,
+                        incompleteSelection = false
+                    )
+                }
+            } else {
+                delay(TOTAL_ACTION_DELAY)
             }
+            updateGameAction(getState, updateState, gameMode,
+                params = UpdateGameAction.UpdateOptions.AFTER_SELECTION
+            )
+        } else if (selectionSize >= gameMode.maxSelection) {
+            //Empty selected numbers if size == maxSelection
+            delay(TOTAL_ACTION_DELAY / 2)
+            updateStateFields(
+                getState, updateState,
+                selectedPositions = emptyList(),
+                displayMessage = getDisplayMessageUseCase(
+                    boardState = currentBoardState,
+                    gameMode = gameMode,
+                )
+            )
         }
-
-
-        /*
-        selectionSize < minSelection || !winCondition && selectionSize < maxSelection -> wait (return)
-        !winCondition && selectionSize >= maxSelection -> refresh selectedNumbers
-        winCondition && selectionSize < maxSelection  -> update + delay + completeSelection
-        winCondition && selectionSize == maxSelection -> complete selection
-
-
-
-
-        if (selectionResult > 0 || values.size >= _gameMode.maxSelection) {
-            delay(500)
-            updateDisplayMessage()
-            updateState2(selectedPositions = emptyList())
-        }
-        if (selectionResult > 0) {
-            executeWinningSelection(selectionResult, selectedPositions)
-        }
-
-         */
-
-
     }
 }

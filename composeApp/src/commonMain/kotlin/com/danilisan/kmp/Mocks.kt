@@ -5,6 +5,59 @@ import com.danilisan.kmp.domain.entity.NumberBox
 import com.danilisan.kmp.domain.entity.Score
 
 object Mocks {
+    //TODO Crear mocks para cada modo de juego
+    val easyAddBoard: Map<BoardPosition, NumberBox> = mapOf(
+        BoardPosition(0, 0) to NumberBox.RegularBox(1),
+        BoardPosition(0, 1) to NumberBox.RegularBox(6),
+        BoardPosition(0, 2) to NumberBox.RegularBox(2),
+        BoardPosition(1, 0) to NumberBox.RegularBox(1),
+        BoardPosition(1, 1) to NumberBox.RegularBox(0),
+        BoardPosition(1, 2) to NumberBox.RegularBox(7),
+        BoardPosition(2, 0) to NumberBox.RegularBox(3),
+        BoardPosition(2, 1) to NumberBox.RegularBox(4),
+        BoardPosition(2, 2) to NumberBox.RegularBox(7),
+    )
+
+    val hardMultiplyBoard: Map<BoardPosition, NumberBox> = mapOf(
+        BoardPosition(0, 0) to NumberBox.RegularBox(1),
+        BoardPosition(0, 1) to NumberBox.RegularBox(5),
+        BoardPosition(0, 2) to NumberBox.RegularBox(6),
+        BoardPosition(1, 0) to NumberBox.RegularBox(6),
+        BoardPosition(1, 1) to NumberBox.RegularBox(5),
+        BoardPosition(1, 2) to NumberBox.RegularBox(0),
+        BoardPosition(2, 0) to NumberBox.RegularBox(4),
+        BoardPosition(2, 1) to NumberBox.RegularBox(9),
+        BoardPosition(2, 2) to NumberBox.RegularBox(1),
+    )
+
+    val jumboBoard: Map<BoardPosition, NumberBox> = mapOf(
+        BoardPosition(0, 0) to NumberBox.RegularBox(0),
+        BoardPosition(0, 1) to NumberBox.RegularBox(0),
+        BoardPosition(0, 2) to NumberBox.RegularBox(1),
+        BoardPosition(0, 3) to NumberBox.RegularBox(1),
+        BoardPosition(1, 0) to NumberBox.RegularBox(1),
+        BoardPosition(1, 1) to NumberBox.RegularBox(2),
+        BoardPosition(1, 2) to NumberBox.RegularBox(7),
+        BoardPosition(1, 3) to NumberBox.RegularBox(1),
+        BoardPosition(2, 0) to NumberBox.RegularBox(2),
+        BoardPosition(2, 1) to NumberBox.RegularBox(7),
+        BoardPosition(2, 2) to NumberBox.RegularBox(4),
+        BoardPosition(2, 3) to NumberBox.RegularBox(1),
+    )
+
+
+    val titleBoard:Map<BoardPosition, NumberBox> = mapOf(
+        BoardPosition(0, 0) to NumberBox.EmptyBox(),
+        BoardPosition(0, 1) to NumberBox.RegularBox(0),
+        BoardPosition(0, 2) to NumberBox.EmptyBox(),
+        BoardPosition(1, 0) to NumberBox.RegularBox(1),
+        BoardPosition(1, 1) to NumberBox.GoldenStarBox(),
+        BoardPosition(1, 2) to NumberBox.RegularBox(7),
+        BoardPosition(2, 0) to NumberBox.EmptyBox(),
+        BoardPosition(2, 1) to NumberBox.RegularBox(7),
+        BoardPosition(2, 2) to NumberBox.EmptyBox(),
+    )
+
     val bingoNoStarsBoard: Map<BoardPosition, NumberBox> = mapOf(
         BoardPosition(0, 0) to NumberBox.RegularBox(6),
         BoardPosition(0, 1) to NumberBox.RegularBox(7),

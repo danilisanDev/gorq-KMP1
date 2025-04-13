@@ -12,7 +12,7 @@ class CreateRandomBoxForQueueUseCase(
         pool: List<Int>,
         isBlockBox: Boolean,
     ): NumberBox = withContext(dispatcher.default) {
-        pool.random().let { value ->
+        (pool.takeUnless{ it.isEmpty() }?.random() ?: 0).let { value ->
             if (isBlockBox) NumberBox.BlockBox(value)
             else NumberBox.RegularBox(value)
         }

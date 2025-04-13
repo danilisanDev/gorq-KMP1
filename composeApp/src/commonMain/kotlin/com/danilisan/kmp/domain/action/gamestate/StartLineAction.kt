@@ -4,6 +4,7 @@ import com.danilisan.kmp.core.provider.DispatcherProvider
 import com.danilisan.kmp.domain.entity.BoardPosition
 import com.danilisan.kmp.domain.entity.GameMode
 import com.danilisan.kmp.ui.state.GameStateUiState
+import io.github.aakira.napier.Napier
 import kotlinx.coroutines.withContext
 
 class StartLineAction(
@@ -16,11 +17,15 @@ class StartLineAction(
         params: Any?,
     ) = withContext(dispatcher.default) {
         //Check expected params type (BoardPosition)
-        if(params !is BoardPosition) return@withContext
+        val startingPosition = if(params is BoardPosition){
+            params
+        }else{
+            return@withContext
+        }
 
         //Add starting position to linedPositions
-        val linedPositions = listOf(params)
-        println("Starting position: $params")
+        val linedPositions = listOf(startingPosition)
+        Napier.d(message = "Starting position: $startingPosition")
 
         //Update state
         updateStateFields(getState,updateState,

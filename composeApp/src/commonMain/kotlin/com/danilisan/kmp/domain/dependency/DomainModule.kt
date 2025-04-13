@@ -1,4 +1,4 @@
-package com.danilisan.kmp.domain.di
+package com.danilisan.kmp.domain.dependency
 
 import com.danilisan.kmp.domain.action.gamestate.*
 import com.danilisan.kmp.domain.usecase.gamestate.*
@@ -16,14 +16,8 @@ val domainModule = module{
     singleOf(::GameStateActionManager)
     factoryOf(::LoadGameStateFromModelAction)
     factoryOf(::PressReloadButtonAction)
-    factoryOf(::ReloadQueueAction)
-    factoryOf(::ReloadRandomBoardAction)
-    factoryOf(::NewGameAction)
-    factoryOf(::RestartGameAction)
-    factoryOf(::BingoAction)
     factoryOf(::CheckBoardStateAction)
     factoryOf(::SelectBoxAction)
-    factoryOf(::CompleteSelectionAction)
     factoryOf(::StartLineAction)
     factoryOf(::DragLineAction)
     factoryOf(::EndLineAction)
@@ -47,8 +41,10 @@ val domainModule = module{
     factoryOf(::CheckSelectionResultUseCase)
     factoryOf(::IncrementScoreUseCase)
     factoryOf(::GetDisplayMessageUseCase)
-    factoryOf(::UpdateStarBoxOnQueueUseCase)
-
-
-
+    factoryOf(::UpdateSilverStarValuesUseCase)
+    factoryOf(::UpdateGameAction)
+    factoryOf(::GetPoolAndParityUseCase)
+    factoryOf(::UpdateBoardValuesUseCase)
+    factoryOf(::UpdateQueueValuesUseCase)
+    factoryOf(::UpdateQueueToBoardValuesUseCase)
 }

@@ -1,20 +1,17 @@
 package com.danilisan.kmp.domain.action.gamestate
 
 import com.danilisan.kmp.core.provider.DispatcherProvider
-import com.danilisan.kmp.domain.entity.BoardPosition
 import com.danilisan.kmp.domain.entity.GameMode
 import com.danilisan.kmp.domain.usecase.gamestate.GetDisplayMessageUseCase
 import com.danilisan.kmp.ui.state.BoardState
 import com.danilisan.kmp.ui.state.GameStateUiState
+import com.danilisan.kmp.domain.action.gamestate.UpdateGameAction.UpdateOptions
 import kotlinx.coroutines.withContext
 
 class PressReloadButtonAction(
     override val dispatcher: DispatcherProvider,
-    val getDisplayMessageUseCase: GetDisplayMessageUseCase,
-    val reloadRandomBoardAction: ReloadRandomBoardAction,
-    val reloadQueueAction: ReloadQueueAction,
-    val newGameAction: NewGameAction,
-    val bingoAction: BingoAction,
+    private val getDisplayMessageUseCase: GetDisplayMessageUseCase,
+    private val updateGameAction: UpdateGameAction,
 ) : GameStateAction {
     override suspend operator fun invoke(
         getState: suspend () -> GameStateUiState,
@@ -52,10 +49,14 @@ class PressReloadButtonAction(
 
         //Invoke Action depending on BoardState
         when(boardState){
-            BoardState.READY -> reloadQueueAction(getState, updateState, gameMode)
-            BoardState.BLOCKED -> reloadRandomBoardAction(getState, updateState, gameMode)
-            BoardState.BINGO -> bingoAction(getState, updateState, gameMode)
-            BoardState.GAMEOVER -> newGameAction(getState, updateState, gameMode)
+            BoardState.READY -> updateGameAction(getState, updateState, gameMode,
+                params = UpdateOptions.RELOAD_QUEUE)
+            BoardState.BLOCKED -> updateGameAction(getState, updateState, gameMode,
+                params = UpdateOptions.RELOAD_BOARD)
+            BoardState.BINGO -> updateGameAction(getState, updateState, gameMode,
+                params = UpdateOptions.AFTER_BINGO)
+            BoardState.GAMEOVER -> updateGameAction(getState, updateState, gameMode,
+                params = UpdateOptions.NEW_GAME)
         }
     }
 }

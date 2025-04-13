@@ -1,17 +1,17 @@
 package com.danilisan.kmp.domain.action.gamestate
 
+import androidx.compose.ui.text.font.FontWeight
 import com.danilisan.kmp.core.provider.DispatcherProvider
 import com.danilisan.kmp.domain.entity.BoardHelper
-import com.danilisan.kmp.domain.entity.BoardHelper.filterByLine
-import com.danilisan.kmp.domain.entity.BoardHelper.getBoardPositionFromLineIdAndIndex
-import com.danilisan.kmp.domain.entity.BoardHelper.getLineLength
 import com.danilisan.kmp.domain.entity.BoardPosition
 import com.danilisan.kmp.domain.entity.DisplayMessage
+import com.danilisan.kmp.domain.entity.DisplayMessage.Companion.DISPLAY_TEXT_SUCCESS
 import com.danilisan.kmp.domain.entity.GameMode
 import com.danilisan.kmp.domain.entity.NumberBox
 import com.danilisan.kmp.domain.entity.NumberBox.Companion.EMPTY_VALUE
 import com.danilisan.kmp.domain.usecase.gamestate.GetDisplayMessageUseCase
 import com.danilisan.kmp.domain.usecase.gamestate.GetWinningLinesUseCase
+import com.danilisan.kmp.domain.usecase.gamestate.UpdateSilverStarValuesUseCase
 import com.danilisan.kmp.ui.state.GameStateUiState
 import kotlinproject.composeapp.generated.resources.Res
 import kotlinproject.composeapp.generated.resources.displayMsgNewLines
@@ -19,6 +19,7 @@ import kotlinx.coroutines.withContext
 
 class DragLineAction(
     override val dispatcher: DispatcherProvider,
+    private val updateSilverStarValuesUseCase: UpdateSilverStarValuesUseCase,
     private val getWinningLinesUseCase: GetWinningLinesUseCase,
     private val getDisplayMessageUseCase: GetDisplayMessageUseCase,
 ) : GameStateAction {
@@ -38,9 +39,8 @@ class DragLineAction(
         //Return if there is no movement towards new position
         if (linedPositions.last() == params) return@withContext
 
+        //Update state with new position
         val lineLength = gameMode.lineLength
-        val lastRealPosition = linedPositions.filterNotNull().last()
-        //Stored lines in state
         val completedLines = getState().completedLines.toMutableList()
         val positionsInCurrentLine = linedPositions.run {
             try{
@@ -51,24 +51,25 @@ class DragLineAction(
         }
         var board: Map<BoardPosition, NumberBox>? = null
 
-        //Check movement backwards
-        if (linedPositions.size > 1 && linedPositions[linedPositions.size - 2] == params) {
-            linedPositions.run {
-                removeAt(size - 1)
+        linedPositions
+            .takeIf{ it.size > 1 && it[it.size - 2] == params }
+            ?.run{ //Movement backwards
+                removeAt(size - 1) //Remove last position
                     .takeIf { it != null }?.run {
+                        //If removed is not null -> Check line undoing
                         if (positionsInCurrentLine.size == 1 && completedLines.isNotEmpty()) {
                             completedLines.run {
                                 removeAt(size - 1)
                             }
                             //Update value from silverBoxes
-                            board = getState().board.apply{
-                                values.forEach{ box ->
-                                    if(box is NumberBox.SilverStarBox){
+                            board = getState().board.apply {
+                                values.forEach { box ->
+                                    if (box is NumberBox.SilverStarBox) {
                                         box.setValue(EMPTY_VALUE)
                                     }
                                 }
-                            }.let{newBoard ->
-                                updateSilverStarValues(
+                            }.let { newBoard ->
+                                updateSilverStarValuesUseCase(
                                     board = newBoard,
                                     completedLines = completedLines,
                                     getWinConditionNumbers = gameMode::getWinConditionNumbers
@@ -76,13 +77,8 @@ class DragLineAction(
                             }
                         }
                     }
-            }
-            printLinesState(
-                completedLines,
-                linedPositions,
-                lineLength
-            )
-        } else {
+        } ?: run{ //Movement towards new position
+            val lastRealPosition = linedPositions.filterNotNull().last()
             if (!params.isAdjacentPosition(lastRealPosition) || params in positionsInCurrentLine) {
                 linedPositions.addPositionOrNull()
             } else {//Check if last position + new position are in the same line
@@ -100,7 +96,7 @@ class DragLineAction(
                         if (newLinedPositions.size == lineLength) {
                             completedLines.add(newLineId)
                             //Add value to SilverBox
-                            board = updateSilverStarValues(
+                            board = updateSilverStarValuesUseCase(
                                 completedLines = completedLines,
                                 board = getState().board,
                                 getWinConditionNumbers = gameMode::getWinConditionNumbers
@@ -130,10 +126,20 @@ class DragLineAction(
         val newMessage = if (completedLines.isEmpty()) {
             getDisplayMessageUseCase(getState().boardState, gameMode)
         } else {
-            DisplayMessage(
-                res = Res.plurals.displayMsgNewLines,
-                arg = completedLines.size.toString()
-            )
+            completedLines.size.let { lines ->
+                DisplayMessage(
+                    res = Res.plurals.displayMsgNewLines,
+                    arg = lines.toString(),
+                    highlightColor = DISPLAY_TEXT_SUCCESS,
+                    weight = when(lines){
+                        0 -> FontWeight.Normal
+                        5 -> FontWeight.ExtraBold
+                        else -> FontWeight.Bold
+                    },
+                    sizeDiff = lines - 1,
+                )
+            }
+
         }
         updateStateFields(
             getState, updateState,
@@ -145,31 +151,6 @@ class DragLineAction(
             displayMessage = newMessage,
         )
     }
-}
-
-//TODO Abstraer a UseCase
-private suspend fun updateSilverStarValues(
-    board: Map<BoardPosition, NumberBox>,
-    completedLines: List<Int>,
-    getWinConditionNumbers: suspend (List<Int>) -> Set<Int>,
-): Map<BoardPosition, NumberBox> {
-    completedLines.reversed().forEach{ lineId ->
-        board.filterByLine(lineId).takeUnless { boxes ->
-            boxes.count { it is NumberBox.SilverStarBox && it.value == EMPTY_VALUE } != 1
-                    || boxes.any { it is NumberBox.GoldenStarBox }
-        }?.let { boxes ->
-            val silverPosition = getBoardPositionFromLineIdAndIndex(
-                lineId = lineId,
-                index = boxes.indexOfFirst { it is NumberBox.SilverStarBox && it.value == EMPTY_VALUE },
-                lineLength = board.getLineLength(),
-            )
-            getWinConditionNumbers(boxes.map { it.value }).takeIf { it.isNotEmpty() }
-                ?.let { winningNumbers ->
-                    board[silverPosition]?.setValue(winningNumbers.max())
-                }
-        }
-    }
-    return board
 }
 
 private fun printLinesState(

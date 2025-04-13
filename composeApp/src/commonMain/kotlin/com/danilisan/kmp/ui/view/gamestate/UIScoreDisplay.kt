@@ -19,32 +19,35 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.danilisan.kmp.domain.entity.Score
 import com.danilisan.kmp.ui.theme.Theme
-import com.danilisan.kmp.ui.theme.withAlpha
-import com.danilisan.kmp.ui.view.UISpacer
+import com.danilisan.kmp.ui.view.withAlpha
 import kotlinproject.composeapp.generated.resources.Res
 import kotlinproject.composeapp.generated.resources.lines
 import kotlinproject.composeapp.generated.resources.score
 import kotlinproject.composeapp.generated.resources.thousandSeparator
 import kotlinproject.composeapp.generated.resources.trillion
-import kotlinproject.composeapp.generated.resources.turns
 import org.jetbrains.compose.resources.stringResource
 
 const val MAX_DISPLAY: Long = 1_000_000_000_000L
 
 @Composable
-fun UIScoreDisplay(score: Score){
+fun UIScoreDisplay(
+    score: Score,
+    goldenStar: Boolean? = null,
+){
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxWidth()
-            .aspectRatio(5f)
+            .aspectRatio(6f)
     ){
         val boxSize = maxWidth
         val shape = RoundedCornerShape(topStartPercent = 14, topEndPercent = 14)
@@ -72,88 +75,65 @@ fun UIScoreDisplay(score: Score){
         ){
             Row(
                 modifier = Modifier
-                    .fillMaxWidth(0.9f),
-                verticalAlignment = Alignment.CenterVertically,
+                    .fillMaxWidth(0.9f)
+                    .fillMaxHeight(0.75f),
+                verticalAlignment = Alignment.Bottom
             ){
+                val size: @Composable (Int) -> TextUnit = { div ->
+                    with(LocalDensity.current) { boxSize.toSp() / div}
+                }
+
                 val bigNumbers = getBigNumbersString(score.points)
                 val smallNumbers = getSmallNumbersString(score.points)
-                Column(
-                    modifier = Modifier
-                        .fillMaxHeight(0.6f)
-                        .weight(4f),
-                    verticalArrangement = Arrangement.Center,
+                Column(Modifier
+                    .weight(2f)
+                    .fillMaxHeight(),
+                    verticalArrangement = Arrangement.Center
                 ){
-                    val smallSize = with(LocalDensity.current) { boxSize.toSp() / 21}
-                    Row(
-                        modifier = Modifier.fillMaxWidth()
-                    ){
-                        val style = TextStyle(
-                            fontSize = smallSize,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Theme.colors.primary
-                        )
-                        Text(
-                            text = stringResource(Res.string.score),
-                            modifier = Modifier.weight(2f),
-                            textAlign = TextAlign.Start,
-                            style = style
-                        )
-                        Text(
-                            text = smallNumbers,
-                            letterSpacing = 2.sp,
-                            modifier = Modifier.weight(5f),
-                            textAlign = TextAlign.End,
-                            style = style
-                            )
-                    }
-                    UISpacer(5)
-                    Row(modifier = Modifier.fillMaxWidth()){
-                        val smallerSize = with(LocalDensity.current) { boxSize.toSp() / 35}
-                        Text(
-                            text = "${stringResource(Res.string.lines).uppercase()} ${score.lines}",
-                            modifier = Modifier
-                                .weight(1f),
-                            style = TextStyle(
-                                fontSize = smallerSize,
-                                fontWeight = FontWeight.Bold,
-                                textAlign = TextAlign.End,
-                                color = Theme.colors.primary.withAlpha(0.4f)
-                            )
-                        )
-                        Text(
-                            text = "${stringResource(Res.string.turns).uppercase()} ${score.turns}",
-                            modifier = Modifier
-                                .weight(1f),
-                            style = TextStyle(
-                                fontSize = smallerSize,
-                                fontWeight = FontWeight.Bold,
-                                textAlign = TextAlign.Center,
-                                color = Theme.colors.primary.withAlpha(0.4f)
-                            )
-                        )
-                    }
-                }
-                Box(
-                    modifier = Modifier
-                        .fillMaxHeight()
-                        .weight(1f),
-                    contentAlignment = Alignment.Center
-                ){
-                    val bigSize = with(LocalDensity.current) { boxSize.toSp() / 10}
                     Text(
-                        text = bigNumbers,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .fillMaxHeight(0.7f)
-                            .padding(start = 2.dp),
+                        text = stringResource(Res.string.score),
+                        textAlign = TextAlign.Start,
+                        fontSize = size(21),
+                        fontWeight = FontWeight.SemiBold,
+                        color = Theme.colors.primary,
+                    )
+                    Text(
+                        text = "${stringResource(Res.string.lines).uppercase()} ${score.lines}",
                         style = TextStyle(
-                            fontSize = bigSize,
+                            fontSize = size(42),
                             fontWeight = FontWeight.Bold,
                             textAlign = TextAlign.Start,
-                            color = Theme.colors.display
+                            color = Theme.colors.primary.withAlpha(0.4f)
                         )
                     )
                 }
+
+                Text(
+                    text = smallNumbers,
+                    letterSpacing = 2.sp,
+                    color = Theme.colors.primary.withAlpha(0.7f),
+                    modifier = Modifier
+                        .fillMaxHeight(0.7f)
+                        .weight(4f),
+                    textAlign = TextAlign.End,
+                    fontSize = size(17),
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    text = bigNumbers,
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(start = 2.dp),
+                    style = TextStyle(
+                        fontSize = size(10),
+                        fontWeight = FontWeight.Bold,
+                        brush = Brush.linearGradient(when(goldenStar){
+                            true -> Theme.colors.getCombinedStarGradient(Theme.colors.golden)
+                            false -> Theme.colors.getCombinedStarGradient(Theme.colors.grey)
+                            else -> listOf(Theme.colors.primary, Theme.colors.primary)
+                        }),
+                    )
+                )
             }
         }
     }

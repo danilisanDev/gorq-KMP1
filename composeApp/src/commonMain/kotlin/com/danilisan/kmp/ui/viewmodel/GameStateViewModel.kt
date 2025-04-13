@@ -32,16 +32,24 @@ class GameStateViewModel(
     //const val KEY_SAVED_STATE = "game_state_flow"
     //var gameState = savedStateHandle.getStateFlow(KEY_SAVED_STATE, GameStateUiState())
 
+    //Concurrency control
+    private val gameStateMutex = Mutex()
+    private val dragActionMutex = Mutex()
+
     //Game state
     private val _gameState = MutableStateFlow(GameStateUiState())
     val gameState = _gameState.asStateFlow()
 
-    private suspend fun getGameState(): GameStateUiState = _gameState.value
+    private suspend fun getGameState(): GameStateUiState =
+        gameStateMutex.withLock { _gameState.value }
     private suspend fun updateGameState(newState: GameStateUiState) =
-        withContext(dispatcher.main) { _gameState.update { newState }  }
-    private suspend fun setIsLoadingState(isLoading: Boolean) {
-        _gameState.value = _gameState.value.copy(isLoading = isLoading)
-    }
+        gameStateMutex.withLock{
+            withContext(dispatcher.main) { _gameState.update { newState }  }
+        }
+    private suspend fun setIsLoadingState(isLoading: Boolean) =
+        withContext(dispatcher.main){
+            _gameState.value = _gameState.value.copy(isLoading = isLoading)
+        }
 
     //Game mode
     private val _gameModeState = MutableStateFlow(GameMode.EasyAdd.getGameModeState())
@@ -61,7 +69,6 @@ class GameStateViewModel(
         viewModelScope.launch(dispatcher.main) {
             DebugTest.debugLog("initViewModel", true)
             actionManager.initialLoad(::updateGameModeState)
-            println(gameModeState.value.modeId)
             setIsLoadingState(false)
             DebugTest.debugLog("initViewModel", false)
         }
@@ -91,7 +98,7 @@ class GameStateViewModel(
                 }
                 //OnDragLine
                 1 -> {
-                    Mutex().withLock {
+                    dragActionMutex.withLock {
                         actionManager.dragLine(position)
                     }
                 }
@@ -101,178 +108,12 @@ class GameStateViewModel(
                     setIsLoadingState(false)
                 }
             }
-
-
-
         }
-
-
-
     /*
     fun resumeGameHandler()
     fun newGameHandler()
-    fun startLineHandler()
-    fun finishLineHandler()
      */
 
 
     //endregion
-
-
-    //DEPRECATED
-/*
-    //Functions for events -> pass as method references in UI (::method)
-    fun selectAction(position: BoardPosition) {
-        viewModelScope.launch(dispatcher.main) {
-            DebugTest.debugLog("select", true)
-            setIsLoadingState(true)
-
-            //Add or remove selected position
-            val selectedPositions = _gameState.value.selectedPositions.toMutableList()
-            if (position in selectedPositions) {
-                selectedPositions.remove(position)
-            } else {
-                selectedPositions.add(position)
-            }
-
-            //Get selected values
-            val values = selectedPositions.mapNotNull { position ->
-                _gameState.value.board[position]?.value
-            }
-
-            //Update message
-            updateDisplayMessage(values)
-
-
-            //Check win condition
-            val selectionResult = useCaseManager.checkSelectedNumbers(
-                minSelection = _gameMode.minSelection,
-                maxSelection = _gameMode.maxSelection,
-                selectedNumbers = values,
-                getWinConditionResult = _gameMode::getWinConditionResult
-            )
-
-            //Update selected numbers
-            updateState2(selectedPositions = selectedPositions)
-
-            if (selectionResult > 0 || values.size >= _gameMode.maxSelection) {
-                delay(500)
-                updateDisplayMessage()
-                updateState2(selectedPositions = emptyList())
-            }
-            if (selectionResult > 0) {
-                executeWinningSelection(selectionResult, selectedPositions)
-            }
-            setIsLoadingState(false)
-        }
-    }
-
-
-    private suspend fun executeWinningSelection(
-        selectionResult: Int,
-        selectedPositions: List<BoardPosition>,
-    ) {
-        //Increase score
-        coroutineScope {
-            launch {
-                updateScore(
-                    pointsIncrement = selectionResult,
-                    turnsIncrement = 1
-                )
-            }
-        }
-
-        //GetParityOrderList
-
-        //For loop
-        selectedPositions.forEach { targetPosition ->
-            //Box from Queue to Board
-            val travellingBox = _gameState.value.queue[0]
-            //Add box on Board
-            val newBoard = useCaseManager.addBoxOnBoard(
-                board = _gameState.value.board,
-                targetPosition = targetPosition,
-                newBox = travellingBox,
-            )
-            //New box for queue
-            val newBoxOnQueue = useCaseManager.getRandomBoxForQueue(
-                _gameMode.blockNumbers,
-                _gameMode.generateBlocksOnQueue
-            )
-            //Add box on queue
-            val newQueue = useCaseManager.addBoxOnQueue(
-                currentQueue = _gameState.value.queue,
-                newBox = newBoxOnQueue,
-                queueSize = _gameMode.queueSize
-            )
-
-            //Update board and queue
-            _gameState.value = _gameState.value.copy(
-                board = newBoard,
-                queue = newQueue,
-            )
-        }
-        //actionManager.checkBoardState()
-    }
-
-
-    /*
-    newGame:
-        - generateNewGameState
-
-    reloadButton():
-        when(boardState)
-        - BINGO:
-            1. Sumar puntos + recargas
-            2. getNumberPool(queue) -> generateNewBoard(gameMode)
-            3. boardState -> Ready
-            4. availableLines -> emptySet()
-            5. auxDisplay -> Ready message
-        - BLOCKED:
-            1. Restar 2 recargas
-            2. getNumberPool(queue) -> generateNewBoard(gameMode)
-            3. boardState -> Ready
-            4. availableLines -> emptySet()
-            5. auxDisplay -> Ready message
-        - READY:
-            1. Restar 1 recarga
-            2. getNumberPool(board) -> generateNewQueue(gameMode)
-
-    selectBox(BoardPosition):
-        if(estaba seleccionada)
-            1. Deseleccionar casilla (isSelected = -1)
-            2. Revisar otras casillas seleccionadas
-            3. auxDisplay -> Actualizar mensaje (Ready / x + x)
-        else(no estaba seleccionada)
-            1. Seleccionar casilla (isSelected = max(isSelected) + 1)
-            2. if (winCondition && isSelected.count >= (lineLength - 1))
-                a. auxDisplay -> Actualizar mensaje (x + x + x)
-                b. Sumar puntos (Turnos + 1?)
-                c. Sustituir board.isSelected == queue.index
-                d. refillQueue(isSelected.count)
-                e. Reiniciar isSelected = -1
-               else if(!winCondition && isSelected.count == lineLength)
-                a. auxDisplay -> Actualizar mensaje (x + x + x)
-                b. Reiniciar isSelected = -1
-            3. auxDisplay -> Ready message
-
-    lineAction(Set<BoardPosition>)
-        1. Calcular número de líneas + Sumar puntos y lineas + (Turnos + 1?)
-        2. Eliminar casillas alineadas?
-        3. getNumberPool(queue, board) + refillBoard
-
-     [Todas -> updateGameStateModel]
-     */
-
-    //Loading state
-
-
-    //region PRIVATE METHODS
-    //region GAMESTATE PERSISTENCE
-
-    //Cambio gamestate
-    //savedStateHandle[KEY_SAVED_STATE] = nuevo valor
-*/
 }
-
-

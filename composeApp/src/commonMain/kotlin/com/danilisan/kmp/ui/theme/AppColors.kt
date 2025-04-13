@@ -2,6 +2,8 @@ package com.danilisan.kmp.ui.theme
 
 import androidx.compose.runtime.Stable
 import androidx.compose.ui.graphics.Color
+import com.danilisan.kmp.ui.view.plus
+import com.danilisan.kmp.ui.view.withAlpha
 
 @Stable
 data class AppColors(
@@ -19,54 +21,10 @@ data class AppColors(
     val outsetGradient: List<Color>,
     val insetGradient: List<Color>,
     val regularGradient: List<Color>,
-)
-
-fun Color.combineOver(other: Color? = this, times: Int = 1, alpha: Float = -1f): Color =
-    if(other == null){
-        this
-    }else{
-        var result = this
-        val newColor = other.withAlpha(alpha)
-        repeat(times) { result += newColor }
-        result
-    }
-
-fun Color.withAlpha(newAlpha: Float = -1f): Color =
-    if(newAlpha !in 0f..1f){
-        this
-    }else{
-        Color(
-            red = this.red,
-            green = this.green,
-            blue = this.blue,
-            alpha = newAlpha
-        )
-    }
-
-/**
- * Operator function to combine two overlapped colors
- * into a single instance of Color
- */
-operator fun Color.plus(other: Color?): Color =
-    if(other == null){
-        this
-    } else{
-        (this.alpha + other.alpha).let{ alphaSum ->
-            Color(
-                red = (this.colorAlpha(0) + other.colorAlpha(0)) / alphaSum,
-                green = (this.colorAlpha(1) + other.colorAlpha(1)) / alphaSum,
-                blue = (this.colorAlpha(2) + other.colorAlpha(2)) / alphaSum,
-                alpha = alphaSum.takeIf { it < 1f } ?: 1f
-            )
-        }
-    }
-
-private fun Color.colorAlpha(color: Int) = when(color){
-        0 -> this.red
-        1 -> this.green
-        2 -> this.blue
-        else -> 1f
-    } * this.alpha
+){
+    fun getCombinedStarGradient(filter: Color): List<Color> =
+        this.starGradient.map{ it + filter }
+}
 
 private val golden = Color(0xFFFFB707)
 private val blue = Color(0xFF077AD7)

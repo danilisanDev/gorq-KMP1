@@ -4,9 +4,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
-import com.danilisan.kmp.core.di.initKoin
+import com.danilisan.kmp.core.dependency.initKoin
 import com.danilisan.kmp.core.log.initNapier
-import java.awt.Toolkit
 
 fun main(){
     //Start koin DI

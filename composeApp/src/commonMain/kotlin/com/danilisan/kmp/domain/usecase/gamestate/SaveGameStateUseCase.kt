@@ -1,7 +1,6 @@
 package com.danilisan.kmp.domain.usecase.gamestate
 
 import com.danilisan.kmp.core.provider.DispatcherProvider
-import com.danilisan.kmp.data.model.GameStateModel
 import com.danilisan.kmp.domain.entity.BoardPosition
 import com.danilisan.kmp.domain.entity.NumberBox
 import com.danilisan.kmp.domain.entity.Score

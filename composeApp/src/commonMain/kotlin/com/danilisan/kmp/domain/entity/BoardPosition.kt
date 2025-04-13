@@ -7,8 +7,8 @@ import com.danilisan.kmp.domain.entity.BoardHelper.getDirectionAndIndexFromLineI
  */
 
 class BoardPosition (
-    val row: Int,
-    val column: Int,
+    val row: Int = -1,
+    val column: Int = -1,
 ): Comparable<BoardPosition>{
     /**
      * Returns the sum of column + row
@@ -51,7 +51,7 @@ class BoardPosition (
             else -> false
         }
 
-    suspend fun isValidPosition(lineLength: Int): Boolean =
+    fun isValidPosition(lineLength: Int = 0): Boolean =
         (column in 0 until lineLength
                 && row in 0 until lineLength)
 
@@ -60,7 +60,7 @@ class BoardPosition (
             (this.row - other.row) in (-1..1) &&
                     (this.column - other.column) in (-1..1)
 
-    override fun toString(): String = "R$row-C$column"
+    override fun toString(): String = "[${this::class.simpleName}]: R$row-C$column"
 
     override fun equals(other: Any?): Boolean {
         if (this === other){

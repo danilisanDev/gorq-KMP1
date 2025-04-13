@@ -1,5 +1,6 @@
 package com.danilisan.kmp.domain.entity
 
+import com.danilisan.kmp.Mocks
 import com.danilisan.kmp.domain.entity.BoardHelper.GAME_MODES
 import com.danilisan.kmp.domain.entity.NumberBox.Companion.EMPTY_VALUE
 import com.danilisan.kmp.ui.state.GameModeState
@@ -27,12 +28,12 @@ sealed class GameMode {
     //Default overriddable variables
     open val regularNumbers: Set<Int> = (0..7).toSet()
     open val numberRepetitions: Int = 2
-    open val blockNumbers: List<Int> = listOf(8, 9)
+    open val blockNumbers: Set<Int> = setOf(8, 9)
     open val lineLength: Int = 3
     open val queueSize: Int = 3
     open val minSelection: Int = 2
     open val maxSelection: Int = 3
-    open val initialReloads: Int = 7
+    open val initialReloads: Int = 3
     open val reloadQueueCost: Int = -1
     open val reloadBoardCost: Int = -2
     open val generateBlocksOnQueue: Boolean = true
@@ -40,12 +41,16 @@ sealed class GameMode {
     open val selectedNumbersSeparator = " + "
 
     fun getBoardSize(): Int = lineLength * lineLength
-    private fun getModeId(): Int = GAME_MODES.indexOf(this)
+    fun getModeId(): Int = GAME_MODES.indexOf(this)
     fun getGameModeState(): GameModeState =
         GameModeState(
-            getModeId(), icon,
-            reloadBoardCost * -1,
-            reloadQueueCost * -1
+            modeId = getModeId(),
+            icon = icon,
+            queueSize = queueSize,
+            lineLength = lineLength,
+            reloadBoardCost = reloadBoardCost * -1,
+            reloadQueueCost = reloadQueueCost * -1,
+            ::isGoldenStar
         )
 
     //region WIN CONDITION RULE
@@ -56,8 +61,8 @@ sealed class GameMode {
     suspend fun isWinCondition(lineValues: List<Int>): Boolean =
         getWinConditionPoints(lineValues) > 0
 
-    suspend fun getWinConditionPoints(lineValues: List<Int>): Int =
-        calculatePointsByGameMode(lineValues) ?: 0
+    suspend fun getWinConditionPoints(lineValues: List<Int>): Long =
+        calculatePointsByGameMode(lineValues)?.toLong() ?: 0L
 
     protected open suspend fun calculatePointsByGameMode(lineValues: List<Int>): Int? =
         lineValues.sum().takeIf { it in goalValues }
@@ -87,24 +92,43 @@ sealed class GameMode {
             .let { sum ->
                 goalValues
                     .map { goal -> goal - sum }
-                    .filter { it in boxNumbers  || it < 0}
+                    .filter { it in boxNumbers || it < 0 }
                     .toSet()
             }
     //endregion
 
     //Condition for a golden Star
-    open suspend fun isGoldenStar(points: Long): Boolean =
+    fun isGoldenStar(score: Score): Boolean? =
+        takeIf { ((score.turns - 1) % turnsForStar) == 0 }
+            ?.run {
+                checkGoldenStarByGameMode(score.points)
+            }
+
+    protected open fun checkGoldenStarByGameMode(points: Long): Boolean =
         (points % 100).toInt() in goalValues
 
-    //Line action results
-    open suspend fun getPointsForLines(lines: Int): Int =
-        (1..lines).fold(0){acc, i -> acc + i * 100}
+
+    //Action score and reloads
+    open suspend fun getScoreForLines(lines: Int): Score = Score(
+        points = getPointsForLines(lines),
+        lines = lines,
+    )
+
+    private suspend fun getPointsForLines(lines: Int): Long =
+        (1..lines).fold(0){acc, i -> acc + i * 100}.toLong()
 
     open suspend fun getReloadIncrementForLines(lines: Int): Int =
         (lines - 1).takeIf{ it > 0 }?: 0
 
-    open suspend fun getPointsForBingo(): Int = getPointsForLines(17)
+    open suspend fun getScoreForBingo(): Score = Score(
+        points = getPointsForLines(17),
+        lines = lineLength * 2 + 2,
+    )
+
     open suspend fun getReloadIncrementForBingo(): Int = 7
+
+    //Get Mock board
+    abstract suspend fun getMockBoard(): Map<BoardPosition, NumberBox>
 
     /** TODO Traducir
      * Modo de juego con tablero 3x3 y reserva de 3 numeros.
@@ -116,6 +140,8 @@ sealed class GameMode {
     data object EasyAdd : GameMode(){
         override val modeName = Res.string.easyAddMode
         override val icon = Res.drawable.icon_easyaddmode
+        override suspend fun getMockBoard(): Map<BoardPosition, NumberBox> =
+            Mocks.easyAddBoard
     }
     //Default values and functions
 
@@ -131,7 +157,9 @@ sealed class GameMode {
         override val modeName = Res.string.multiplyMode
         override val icon = Res.drawable.icon_multiplymode
         override val regularNumbers = boxNumbers.toSet()
-        override val blockNumbers = listOf(9)
+        override val blockNumbers = setOf(9)
+        override suspend fun getMockBoard(): Map<BoardPosition, NumberBox> =
+            Mocks.hardMultiplyBoard
 
         //numberRepetitions = 2
         //lineLength = 3
@@ -167,17 +195,16 @@ sealed class GameMode {
             val tens = lineValues[1] % goalValue
             val units = lineValues[2] % goalValue
 
-            return when (EMPTY_VALUE) {
-                hundreds -> calculateHundredsValueForMultiple(factor, tens, units)
-                tens -> calculateTensValueForMultiple(factor, hundreds, units)
-                units -> calculateUnitsValueForMultiple(hundreds, tens)
+            return when (lineValues.indexOf(EMPTY_VALUE)) {
+                0 -> calculateHundredsValueForMultiple(factor, tens, units)
+                1 -> calculateTensValueForMultiple(factor, hundreds, units)
+                2 -> calculateUnitsValueForMultiple(hundreds, tens)
                 else -> null
             }
                 ?.let { result ->
                     getPossibleNumbersSet(result, goalValue)
                 }
                 ?: run {
-                    Napier.d(message = "There is not empty value on this line")//Innecesario
                     emptySet()
                 }
         }
@@ -212,7 +239,7 @@ sealed class GameMode {
             }
         }
 
-        override suspend fun isGoldenStar(points: Long): Boolean = true
+        override fun checkGoldenStarByGameMode(points: Long): Boolean = true
     }
 }
 

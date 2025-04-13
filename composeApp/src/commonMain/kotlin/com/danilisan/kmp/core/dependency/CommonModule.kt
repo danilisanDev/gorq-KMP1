@@ -1,8 +1,7 @@
-package com.danilisan.kmp.core.di
+package com.danilisan.kmp.core.dependency
 
 import com.danilisan.kmp.core.provider.DispatcherProvider
 import com.danilisan.kmp.core.provider.ProductionDispatcherProvider
-import com.danilisan.kmp.core.provider.TestDispatcherProvider
 
 import org.koin.core.module.dsl.bind
 import org.koin.core.module.dsl.singleOf

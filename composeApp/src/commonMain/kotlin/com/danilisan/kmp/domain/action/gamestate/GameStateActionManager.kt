@@ -18,18 +18,17 @@ import com.danilisan.kmp.ui.state.GameStateUiState
 class GameStateActionManager(
     //Persistence useCases
     private val getSavedGameStateUseCase: GetSavedGameStateUseCase,
-    private val saveGameStateUseCase: SaveGameStateUseCase,
     //Game actions
     private val loadGameStateFromModelAction: LoadGameStateFromModelAction,
-    private val newGameAction: NewGameAction,
     private val pressReloadButtonAction: PressReloadButtonAction,
+    private val updateGameAction: UpdateGameAction,
     private val selectBoxAction: SelectBoxAction,
     private val startLineAction: StartLineAction,
     private val dragLineAction: DragLineAction,
     private val endLineAction: EndLineAction,
-    ) {
+) {
     //Delegate state holders
-    private var gameMode: GameMode = GameMode.EasyAdd
+    private var gameMode: GameMode = GameMode.EasyAdd //Default game mode
     private var getStateMethod: suspend () -> GameStateUiState = { GameStateUiState() }
     private var updateStateMethod: suspend (GameStateUiState) -> Unit = { }
 
@@ -52,23 +51,25 @@ class GameStateActionManager(
     //Action invoking
     suspend fun initialLoad(
         updateViewModelGameMode: suspend (GameModeState) -> Unit
-    ) = newGameAction(getStateMethod, updateStateMethod, gameMode)
+    ) = updateGameAction(
+        getStateMethod, updateStateMethod, gameMode,
+        params = UpdateGameAction.UpdateOptions.NEW_GAME
+    )
 
     /* ACCESO A PERSISTENCIA
         //Access to saved gameState by Settings
         getSavedGameStateUseCase()
-            ?.let{ pair -> //<GameMode, GameStateUiState>
-                val savedGameMode = pair.first
+            ?.let{ (savedGameMode, savedState) -> //<GameMode, GameStateUiState>
                 updateGameMode(
-                    newGameMode = savedGameMode,
+                    newGameMode = gameMode,
                     updateViewModelGameMode
                 )
-                val savedGameState = pair.second
                 loadGameStateFromModelAction(getStateMethod, updateStateMethod, gameMode,
-                    params = savedGameState)
+                    params = savedState)
             }
             ?: run{ //If no game is saved -> new game
-                newGameAction(getStateMethod, updateStateMethod, gameMode)
+                updateGameAction(getStateMethod, updateStateMethod, gameMode,
+                    params = UpdateGameAction.UpdateOptions.NEW_GAME)
             }
     */
 
@@ -96,68 +97,7 @@ class GameStateActionManager(
     suspend fun endLine() =
         endLineAction(getStateMethod, updateStateMethod, gameMode)
 
+    companion object {
+        const val TOTAL_ACTION_DELAY = 1000L
+    }
 }
-
-
-/*
-0. LoadStateAction
-    - Model to GameState
-    - UpdateGameState
-    - UpdateBoardStateAndLines
-    - UpdateDisplayMessage
-
-1. CreateCleanStateAction
-    - new GameState()
-    - Create empty board
-    - SetTurns
-    - UpdateGameState
-
-2. CreateNewGameAction
-    - GetFullPool
-    - UpdateBoard (full)
-    - UpdateQueue (full)
-    - UpdateBoardStateAndLines
-    - UpdateDisplayMessage
-
-3. ReloadQueueAction
-    - UpdateSelectedNumbers (empty)
-    - UpdateDisplayMessage (empty)
-    - GetCurrentPool (optional)
-    - UpdateQueue (full)
-    - UpdateTurns (consume)
-
-5. ReloadBoardAction
-    - UpdateSelectedNumbers (empty)
-    - UpdateDisplayMessage (empty)
-    - GetCurrentPool (optional)
-    - UpdateBoard (full)
-    - UpdateTurns (consume)
-    - UpdateBoardStateAndLines
-    - UpdateDisplayMessage
-
-6. SelectionAction: Boolean
-    - UpdateSelectedNumbers
-    - UpdateDisplayMessage
-    - Check win condition
-        - UpdateScore
-        - UpdateQueue
-        - UpdateBoard
-        - UpdateBoardStateAndLines
-    - UpdateDisplayMessage
-
-7. StartLineAction
-    - UpdateSelectedNumbers (empty)
-    - UpdateDisplayMessage (empty)
-
-8. EndLineAction
-    - UpdateTurns
-    - UpdateScore
-    - UpdateBoard
-    - UpdateBoardStateAndLines
-
-9. BingoAction
-    - UpdateTurns
-    - UpdateScore
-    ( - CreateNewGameAction)
-
- */

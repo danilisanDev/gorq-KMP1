@@ -1,9 +1,17 @@
 package com.danilisan.kmp.ui.theme
 
+import androidx.compose.material.MaterialTheme
+import androidx.compose.material.Typography
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import kotlinproject.composeapp.generated.resources.Quantico_Bold
+import kotlinproject.composeapp.generated.resources.Quantico_Regular
+import kotlinproject.composeapp.generated.resources.Res
+import org.jetbrains.compose.resources.Font
 
 private val LocalAppColors = staticCompositionLocalOf {
     LightAppColors
@@ -36,13 +44,22 @@ object Theme{
 
 @Composable
 fun ThemeProvider(content: @Composable () -> Unit) {
+    val defaultTypography = Typography(
+        defaultFontFamily = FontFamily(
+            Font(Res.font.Quantico_Regular),
+            Font(Res.font.Quantico_Bold, FontWeight.Bold)
+        )
+    )
     CompositionLocalProvider(
         LocalAppColors provides LightAppColors,
         LocalAppShapes provides DefaultAppShapes,
         LocalAppBorders provides DefaultAppBorders,
     )
     {
-        content()
+        MaterialTheme(
+            typography = defaultTypography,
+            content = content,
+        )
     }
 }
 

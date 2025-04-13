@@ -1,4 +1,4 @@
-package com.danilisan.kmp.ui.di
+package com.danilisan.kmp.ui.dependency
 
 import androidx.lifecycle.SavedStateHandle
 import com.danilisan.kmp.ui.viewmodel.GameStateViewModel

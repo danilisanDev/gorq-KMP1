@@ -19,6 +19,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -27,11 +28,13 @@ import com.danilisan.kmp.domain.entity.NumberBox
 import com.danilisan.kmp.domain.entity.NumberBox.Companion.EMPTY_VALUE
 import com.danilisan.kmp.ui.state.BoardState
 import com.danilisan.kmp.ui.theme.Theme
-import com.danilisan.kmp.ui.theme.combineOver
-import com.danilisan.kmp.ui.theme.plus
-import com.danilisan.kmp.ui.theme.withAlpha
+import com.danilisan.kmp.ui.view.combineOver
+import com.danilisan.kmp.ui.view.plus
+import com.danilisan.kmp.ui.view.withAlpha
+import kotlinproject.composeapp.generated.resources.Quantico_Bold
 import kotlinproject.composeapp.generated.resources.Res
-import kotlinproject.composeapp.generated.resources.star
+import kotlinproject.composeapp.generated.resources.star7
+import org.jetbrains.compose.resources.Font
 import org.jetbrains.compose.resources.vectorResource
 
 @Composable
@@ -41,9 +44,13 @@ fun UINumberBox(
     tintColor: Color = Color.Transparent,
     state: BoardState = BoardState.BLOCKED,
     boardPosition: BoardPosition? = null,
-    isEnabled: Boolean = true,
+    isEnabled: Boolean = false,
     selectAction: (BoardPosition) -> Unit = {}
 ) {
+    if(boardPosition != null){
+        println("$boardPosition recomposition!")
+    }
+
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
@@ -97,21 +104,28 @@ private fun TextNumberForUIBox(
     whiteColor: Boolean = false,
 ) {
     if (value != EMPTY_VALUE) {
-        val valueString = if(value < 0){
-            "$value "
-        }else{
-            "$value"
+        val valueString = when {
+            value < 0 -> "$value "
+            value > 9 -> value.toChar().toString()
+            else -> "$value"
+        }
+        val fontSizeDiv = when {
+            value < 0 -> 2.2f
+            value in 10..96 -> 1.9f
+            value > 96 -> 1.4f
+            else -> 1.9f
         }
         Text(
-            text = "$value" + if(value < 0) " " else "",
+            text = valueString,
             color = if (!whiteColor) {
                 Theme.colors.secondary.withAlpha(0.7f)
             } else {
                 Theme.colors.primary.withAlpha(0.7f)
             },
-            fontWeight = FontWeight.ExtraBold,
+            //fontFamily = FontFamily(Font(Res.font.Quantico_Bold)),
+            fontWeight = FontWeight.Bold,
             fontSize = with(LocalDensity.current) {
-                boxSize.toSp() / (if(value < 0) 2.1 else 1.7) },
+                boxSize.toSp() / fontSizeDiv },
         )
     }
 }
@@ -185,19 +199,25 @@ private fun RegularBoxModifier(
     state: BoardState,
 ): Modifier {
     val shape = Theme.shapes.regularShape
-    val borderGradient = Brush.linearGradient(
-        when (tintColor) {
-        Theme.colors.selected ->
-            Theme.colors.insetGradient
-        Theme.colors.primary -> if(state == BoardState.READY){
-            Theme.colors.outsetGradient
-        }else{
-            listOf(Theme.colors.grey,Theme.colors.grey)
-        }
-        else ->
-            listOf(tintColor, tintColor)
-        }
-    )
+    val borderGradient = if(state == BoardState.BINGO){
+        Brush.sweepGradient(
+            Theme.colors.starGradient
+        )
+    }else{
+        Brush.linearGradient(
+            when (tintColor) {
+                Theme.colors.selected ->
+                    Theme.colors.insetGradient
+                Theme.colors.primary -> if(state == BoardState.READY){
+                    Theme.colors.outsetGradient
+                }else{
+                    listOf(Theme.colors.transparent, Theme.colors.transparent)
+                }
+                else ->
+                    listOf(tintColor, tintColor)
+            })
+    }
+
     val borderColor =
         when (state) {
             BoardState.READY -> {
@@ -302,7 +322,7 @@ private fun UIStarBox(
         contentAlignment = Alignment.Center
     ) {
         Image(
-            imageVector = vectorResource(Res.drawable.star),
+            imageVector = vectorResource(Res.drawable.star7),
             contentDescription = "star",
             modifier = Modifier
                 .matchParentSize()
@@ -323,7 +343,7 @@ private fun StarBoxModifier(
     shape: Shape,
 ): Modifier {
     //TODO Animacion de reflejo
-    val bgColor = if(tintFilter == Theme.colors.success){
+    val colors = if(tintFilter == Theme.colors.success){
         tintFilter
     }else{
         if (isGolden) {
@@ -331,16 +351,14 @@ private fun StarBoxModifier(
         } else {
             Theme.colors.grey
         }.combineOver(tintFilter)
+    }.let{ color ->
+        Theme.colors.getCombinedStarGradient(color)
     }
 
     return Modifier
         .fillMaxSize()
         .background(
-            color = bgColor,
-            shape = shape,
-        )
-        .background(
-            brush = Brush.sweepGradient(Theme.colors.starGradient),
+            brush = Brush.sweepGradient(colors),
             shape = shape,
         )
 }

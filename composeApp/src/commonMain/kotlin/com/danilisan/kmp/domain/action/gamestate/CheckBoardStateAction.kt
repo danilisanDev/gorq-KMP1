@@ -2,6 +2,7 @@ package com.danilisan.kmp.domain.action.gamestate
 
 import com.danilisan.kmp.core.provider.DispatcherProvider
 import com.danilisan.kmp.domain.entity.BoardHelper.getMaxLines
+import com.danilisan.kmp.domain.entity.BoardPosition
 import com.danilisan.kmp.domain.entity.GameMode
 import com.danilisan.kmp.domain.entity.NumberBox
 import com.danilisan.kmp.domain.usecase.gamestate.CalculateBoardStateUseCase
@@ -10,6 +11,7 @@ import com.danilisan.kmp.domain.usecase.gamestate.GetDisplayMessageUseCase
 import com.danilisan.kmp.domain.usecase.gamestate.GetWinningLinesUseCase
 import com.danilisan.kmp.domain.usecase.gamestate.IsBingoPossibleUseCase
 import com.danilisan.kmp.domain.usecase.gamestate.IsSelectionPossibleUseCase
+import com.danilisan.kmp.ui.state.BoardState
 import com.danilisan.kmp.ui.state.GameStateUiState
 import io.github.aakira.napier.Napier
 import kotlinx.coroutines.async
@@ -17,12 +19,12 @@ import kotlinx.coroutines.withContext
 
 class CheckBoardStateAction(
     override val dispatcher: DispatcherProvider,
-    val countStarsOnBoardUseCase: CountStarsOnBoardUseCase,
-    val getWinningLinesUseCase: GetWinningLinesUseCase,
-    val isSelectionPossibleUseCase: IsSelectionPossibleUseCase,
-    val isBingoPossibleUseCase: IsBingoPossibleUseCase,
-    val calculateBoardStateUseCase: CalculateBoardStateUseCase,
-    val getDisplayMessageUseCase: GetDisplayMessageUseCase,
+    private val countStarsOnBoardUseCase: CountStarsOnBoardUseCase,
+    private val getWinningLinesUseCase: GetWinningLinesUseCase,
+    private val isSelectionPossibleUseCase: IsSelectionPossibleUseCase,
+    private val isBingoPossibleUseCase: IsBingoPossibleUseCase,
+    private val calculateBoardStateUseCase: CalculateBoardStateUseCase,
+    private val getDisplayMessageUseCase: GetDisplayMessageUseCase,
 ) : GameStateAction {
     override suspend operator fun invoke(
         getState: suspend () -> GameStateUiState,
@@ -81,7 +83,7 @@ class CheckBoardStateAction(
                 maxLines = board.getMaxLines(),
                 isSelectionPossible = isSelectionPossible.await(),
                 isBingoPossible = isBingoPossible.await(),
-                enoughReloadsLeft = getState().reloadsLeft >= gameMode.reloadBoardCost
+                enoughReloadsLeft = getState().reloadsLeft >= (gameMode.reloadBoardCost * -1)
             ).let{ currentBoardState ->
                 val newMessage = getDisplayMessageUseCase(
                     boardState = currentBoardState,
@@ -91,6 +93,7 @@ class CheckBoardStateAction(
                     availableLines = availableLines,
                     boardState = currentBoardState,
                     displayMessage = newMessage,
+                    targetPositionFromQueue = BoardPosition(),
                 )
             }
         } catch (e: Exception) {
@@ -99,7 +102,16 @@ class CheckBoardStateAction(
              * More than 3 stars on board
              * Silver star on multiply game mode
              */
-            //TODO Actualizar gameState con mocks
+            updateStateFields(getState, updateState,
+                board = gameMode.getMockBoard(),
+                availableLines = emptySet(),
+                boardState = BoardState.READY,
+                displayMessage = getDisplayMessageUseCase(
+                    boardState = BoardState.READY,
+                    gameMode = gameMode
+                ),
+                targetPositionFromQueue = BoardPosition(),
+            )
         }
     }
 }
