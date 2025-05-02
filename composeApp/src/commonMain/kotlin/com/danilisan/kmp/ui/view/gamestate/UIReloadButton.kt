@@ -25,7 +25,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -33,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import com.danilisan.kmp.ui.state.BoardState
 import com.danilisan.kmp.ui.theme.Theme
 import com.danilisan.kmp.ui.view.combineOver
+import com.danilisan.kmp.ui.view.toSp
 import com.danilisan.kmp.ui.view.withAlpha
 import kotlinproject.composeapp.generated.resources.Res
 import kotlinproject.composeapp.generated.resources.bingoButton
@@ -42,11 +42,13 @@ import kotlinproject.composeapp.generated.resources.reloadMultiplierButton
 import org.jetbrains.compose.resources.stringResource
 import org.jetbrains.compose.resources.vectorResource
 
+const val RELOAD_BUTTON_TEXT_DIV = 3.5f
+
 @Composable
 fun UIReloadButton(
-    boardState: BoardState,
-    reloadCost: Int,
-    isEnabled: Boolean,
+    getBoardState: () -> BoardState,
+    getReloadCost: (BoardState) -> Int,
+    isEnabled: () -> Boolean,
     buttonAction: () -> Unit = { },
 ) {
     BoxWithConstraints(
@@ -54,7 +56,7 @@ fun UIReloadButton(
             .fillMaxWidth()
             .fillMaxHeight(0.7f)
     ) {
-        val properties = getProperties(boardState, reloadCost, isEnabled)
+        val properties = getProperties(getBoardState, getReloadCost, isEnabled)
         val outsetBorder = BorderStroke(
             Theme.borders.mediumBorder,
             Brush.linearGradient(
@@ -84,7 +86,7 @@ fun UIReloadButton(
                 )
                 .clickable(
                     onClick = buttonAction,
-                    enabled = isEnabled,
+                    enabled = isEnabled(),
                 ),
             contentAlignment = Alignment.Center,
         ){
@@ -94,8 +96,8 @@ fun UIReloadButton(
                 if(properties.hasIcon){
                     ReloadIcon(properties.textColor)
                 }
-                val fontSize = with(LocalDensity.current) { boxSize.toSp() / 3.5}
-                val textStyle = if(boardState == BoardState.BINGO){
+
+                val textStyle = if(getBoardState() == BoardState.BINGO){
                     TextStyle(
                         color = Theme.colors.golden
                     )
@@ -107,7 +109,7 @@ fun UIReloadButton(
                 Text(
                     text = properties.text,
                     color = properties.textColor,
-                    fontSize = fontSize,
+                    fontSize = (boxSize / RELOAD_BUTTON_TEXT_DIV).toSp(),
                     fontWeight = FontWeight.SemiBold,
                     textAlign = TextAlign.Center,
                     style = textStyle
@@ -133,22 +135,22 @@ private fun ReloadIcon(tint: Color){
 
 @Composable
 private fun getProperties(
-    boardState: BoardState,
-    reloadCost: Int,
-    isEnabled: Boolean,
-): ReloadBtnProperties{
-    return when(boardState){
+    getBoardState: () -> BoardState,
+    getReloadCost: (BoardState) -> Int,
+    isEnabled: () -> Boolean,
+): ReloadBtnProperties = getBoardState().let{ boardState ->
+     when(boardState){
         BoardState.READY -> ReloadBtnProperties(
             shape = Theme.shapes.softBlockShape,
             primaryColor = Theme.colors.primary,
-            borderColor = if(isEnabled){
+            borderColor = if(isEnabled()){
                 Theme.colors.selected
             }else{
                 Theme.colors.secondary.withAlpha(0.4f)
             },
             hasIcon = true,
-            text = stringResource(Res.string.reloadMultiplierButton) + "$reloadCost",
-            textColor = if(isEnabled){
+            text = stringResource(Res.string.reloadMultiplierButton) + "${getReloadCost(boardState)}",
+            textColor = if(isEnabled()){
                 Theme.colors.secondary.withAlpha(0.9f)
             }else{
                 Theme.colors.secondary.withAlpha(0.4f)
@@ -171,7 +173,7 @@ private fun getProperties(
                 ),
             borderColor = Theme.colors.error,
             hasIcon = true,
-            text = stringResource(Res.string.reloadMultiplierButton) + "$reloadCost",
+            text = stringResource(Res.string.reloadMultiplierButton) + "${getReloadCost(boardState)}",
             textColor = Theme.colors.primary
         )
         BoardState.GAMEOVER -> ReloadBtnProperties(

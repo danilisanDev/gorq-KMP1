@@ -10,6 +10,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import kotlin.math.roundToInt
 
@@ -29,9 +30,17 @@ fun UISpacer(
     )
 }
 
-//Dimension utils
+class OffsetDp(val x: Dp, val y: Dp){
+    @Composable
+    fun toPx(): Offset = Offset(this.x.toPx(), this.y.toPx())
+}
+
+//Unit converters
 @Composable
 fun Dp.toPx(): Float = with(LocalDensity.current){ this@toPx.toPx() }
+
+@Composable
+fun Dp.toSp(): TextUnit = with(LocalDensity.current){ this@toSp.toSp() }
 
 fun Offset.toIntOffset(): IntOffset =
     IntOffset(
@@ -39,7 +48,40 @@ fun Offset.toIntOffset(): IntOffset =
         this.y.roundToInt(),
     )
 
+fun List<Color>.toArrayWithAbsoluteColorStops(
+    blur: Float = 0f
+): Array<Pair<Float, Color>>{
+    if(isEmpty() || blur > 1f) return emptyArray()
+
+    val stopInterval = (1f - blur) / size
+    var stop = 0f
+    val result = mutableListOf<Pair<Float,Color>>()
+    repeat(size){ index ->
+        result.add(Pair(stop, this[index]))
+        stop += stopInterval
+        result.add(Pair(stop, this[index]))
+        if(blur > 0f && index != lastIndex){
+            val blurColor = this[index] + this[index + 1]
+            result.add(Pair(stop, blurColor))
+            stop += blur
+            result.add(Pair(stop,blurColor))
+        }
+    }
+    return result.toTypedArray()
+}
+
 //Color utils
+fun createRelativeShader(
+    shaderColor: Color,
+    bgColor: Color? = null,
+    index: Int,
+    maxIndex: Int,
+    highlightFirst: Boolean = true
+): Color {
+    val alpha = ((index.toFloat() / (maxIndex + 1)) / 1f) + if(index != 0 && highlightFirst) 0.1f else 0f
+    return shaderColor.withAlpha(alpha) + bgColor
+}
+
 fun Color.combineOver(other: Color? = this, times: Int = 1, alpha: Float = -1f): Color =
     if(other == null){
         this

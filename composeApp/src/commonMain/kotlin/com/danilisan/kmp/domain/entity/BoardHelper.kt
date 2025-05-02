@@ -22,39 +22,17 @@ object BoardHelper {
         operator fun invoke() = code
     }
 
-    private val AVAILABLE_DIRECTIONS: IntRange =
+    val AVAILABLE_DIRECTIONS: IntRange =
         LineDirection.LEFT_DIAGONAL()..LineDirection.VERTICAL()
 
-    private fun Int.isDiagonal(): Boolean = (this < LineDirection.HORIZONTAL())
-    suspend fun Int.isVertical(): Boolean = (this / 10 == LineDirection.VERTICAL())
-    suspend fun Int.isHorizontal(): Boolean = (this / 10 == LineDirection.HORIZONTAL())
+    fun Int.isDiagonal(): Boolean = (this < LineDirection.HORIZONTAL())
+    fun Int.isVertical(): Boolean = (this / 10 == LineDirection.VERTICAL())
+    fun Int.isHorizontal(): Boolean = (this / 10 == LineDirection.HORIZONTAL())
 
     /**
-     * Returns a set of lineId that fulfill the condition.
-     * Default lineLength (or no parameters) returns empty set.
-     * Default condition returns full set.
+     * Returns a lineId from a direction and position.
+     * If any of the parameters cannot be, it returns null
      */
-    suspend fun getLineIdsWithCondition(
-        lineLength: Int = 0,
-        condition: suspend (Int) -> Boolean = { _ -> true }
-    ): Set<Int> = if (lineLength == 0) {
-        emptySet()
-    } else {
-        mutableSetOf<Int>()
-            .also { resultSet ->
-                for (direction in AVAILABLE_DIRECTIONS) {
-                    for (index in 0 until lineLength) {
-                        lineIdBuilder(direction, index)
-                            ?.let { lineId ->
-                                if (condition(lineId)) {
-                                    resultSet.add(lineId)
-                                }
-                            }
-                    }
-                }
-            }
-    }
-
     fun lineIdBuilder(direction: Int, position: Int = 0): Int? {
         val impossibleDirection = direction !in AVAILABLE_DIRECTIONS
         val impossibleLine = direction.isDiagonal() && position != 0
@@ -66,12 +44,58 @@ object BoardHelper {
     }
 
     /**
+     * Returns a set of lineIds
+     * which all target positions
+     * take part in
+     */
+    fun getLineIdsFromPositions(
+        lineLength: Int,
+        targetPositions: List<BoardPosition>,
+    ): Set<Int> = when(targetPositions.size){
+        0 -> { emptySet() }
+        1 -> {
+            targetPositions.first().let{ targetPosition ->
+                mutableSetOf<Int>()
+                    .also { resultSet ->
+                        //Diagonals
+                        if (targetPosition.isOnLeftDiagonal()) {
+                            resultSet.add(LineDirection.LEFT_DIAGONAL())
+                        }
+                        if (targetPosition.isOnRightDiagonal(lineLength)) {
+                            resultSet.add(LineDirection.RIGHT_DIAGONAL())
+                        }
+                        //Horizontal
+                        lineIdBuilder(
+                            direction = LineDirection.HORIZONTAL(),
+                            position = targetPosition.row
+                        )?.let { lineId ->
+                            resultSet.add(lineId)
+                        }
+                        //Vertical
+                        lineIdBuilder(
+                            direction = LineDirection.VERTICAL(),
+                            position = targetPosition.column
+                        )?.let { lineId ->
+                            resultSet.add(lineId)
+                        }
+                    }
+            }
+        }
+        else -> getLineIdFromPositions(
+            positions = targetPositions,
+            lineLength = lineLength
+        )?.let{ lineId ->
+            setOf(lineId)
+        }?: emptySet()
+    }
+
+    /**
      * From a list of BoardPositions
      * returns null when they cannot take part together in the same line,
      * or the first position couldn't be the first on the line;
      * otherwise, return the lineId.
      */
-    suspend fun getLineIdFromPositions(
+    fun getLineIdFromPositions(
         positions: List<BoardPosition>,
         lineLength: Int
     ): Int? {
@@ -101,6 +125,35 @@ object BoardHelper {
     private fun getDirectionFromLineId(lineId: Int): Int = lineId / 10
 
     private fun getIndexFromLineId(lineId: Int): Int = lineId % 10
+
+    /**
+     * Returns a set of lineId that fulfill the condition.
+     * Default lineLength (or no parameters) returns empty set.
+     * Default condition returns full set.
+     */
+    suspend fun getLineIdsWithCondition(
+        lineLength: Int = 0,
+        condition: suspend (Int) -> Boolean = { _ -> true }
+    ): Set<Int> = if (lineLength == 0) {
+        emptySet()
+    } else {
+        mutableSetOf<Int>()
+            .also { resultSet ->
+                for (direction in AVAILABLE_DIRECTIONS) {
+                    repeat(
+                        times = lineLength,
+                        action = { index ->
+                            lineIdBuilder(direction, index)
+                                ?.let { lineId ->
+                                    if (condition(lineId)) {
+                                        resultSet.add(lineId)
+                                    }
+                                }
+                        }
+                    )
+                }
+            }
+    }
 
     suspend fun getBoardPositionFromLineIdAndIndex(lineId: Int, index: Int, lineLength: Int): BoardPosition =
         getDirectionFromLineId(lineId).let{direction ->

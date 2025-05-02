@@ -6,6 +6,7 @@ import com.danilisan.kmp.domain.entity.NumberBox
 import com.danilisan.kmp.domain.entity.NumberPool
 import com.danilisan.kmp.domain.entity.BoardHelper.getAllBoardLinesFromPosition
 import com.danilisan.kmp.domain.usecase.UseCase
+import io.github.aakira.napier.Napier
 import kotlinx.coroutines.withContext
 
 /**
@@ -29,6 +30,7 @@ class CreateRandomBoxForBoardUseCase(
         currentBoard[targetPosition]
             ?.let{ targetBox ->
                 if(targetBox !is NumberBox.EmptyBox){
+                    Napier.d(message = "There is no empty box in $targetPosition")
                     return@withContext null
                 }
             }

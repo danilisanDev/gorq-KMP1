@@ -22,19 +22,19 @@ class BoardPosition (
     /**
      * Checks if this position takes part in the LEFT diagonal
      */
-    suspend fun isOnLeftDiagonal(): Boolean =
+    fun isOnLeftDiagonal(): Boolean =
         this.row == this.column
 
     /**
      * Checks if this position takes part in the RIGHT diagonal
      */
-    suspend fun isOnRightDiagonal (lineLength: Int = -1): Boolean =
+    fun isOnRightDiagonal (lineLength: Int = -1): Boolean =
          getRightDiagonalValue() == (lineLength - 1)
 
     /**
      * Checks if this position takes part in the given line (from direction and index)
      */
-    suspend fun isOnGivenLine (lineId: Int, lineLength: Int = -1): Boolean =
+    fun isOnGivenLine (lineId: Int, lineLength: Int = -1): Boolean =
         getDirectionAndIndexFromLineId(lineId).let{ (direction, index) ->
             isOnGivenLine(direction,index,lineLength)
         }
@@ -42,7 +42,7 @@ class BoardPosition (
     /**
      * Checks if this position takes part in the given line (from direction and index)
      */
-    suspend fun isOnGivenLine (direction: Int, index: Int = 0, lineLength: Int = -1): Boolean =
+    fun isOnGivenLine (direction: Int, index: Int = 0, lineLength: Int = -1): Boolean =
         when(direction){
             LineDirection.LEFT_DIAGONAL() -> isOnLeftDiagonal()
             LineDirection.RIGHT_DIAGONAL() -> isOnRightDiagonal(lineLength)

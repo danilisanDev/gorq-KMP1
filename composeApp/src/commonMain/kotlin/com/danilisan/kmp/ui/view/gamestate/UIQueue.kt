@@ -8,8 +8,10 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -18,8 +20,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
@@ -28,15 +32,18 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import com.danilisan.kmp.domain.action.gamestate.GameStateActionManager.Companion.TOTAL_ACTION_DELAY
+import com.danilisan.kmp.domain.action.gamestate.GameStateActionManager.Companion.BASE_ACTION_DELAY
 import com.danilisan.kmp.domain.entity.BoardPosition
 import com.danilisan.kmp.domain.entity.NumberBox
 import com.danilisan.kmp.ui.theme.Theme
+import com.danilisan.kmp.ui.view.OffsetDp
+import com.danilisan.kmp.ui.view.createRelativeShader
 import com.danilisan.kmp.ui.view.combineOver
 import com.danilisan.kmp.ui.view.withAlpha
 import com.danilisan.kmp.ui.view.toIntOffset
@@ -44,7 +51,6 @@ import com.danilisan.kmp.ui.view.toPx
 import kotlinproject.composeapp.generated.resources.Res
 import kotlinproject.composeapp.generated.resources.down_arrow
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.vectorResource
 
 const val ASPECT_RATIO = 0.8f
@@ -53,34 +59,43 @@ const val QUEUEBOX_ANIMATED_OFFSET = 0
 const val QUEUEBOX_ANIMATED_SIZE = 1
 const val TRAVELBOX_ANIMATED_OFFSET = 2
 const val TRAVELBOX_ANIMATED_SIZE = 3
-const val TRAVELBOX_ANIMATED_SHADOW = 4
+const val SHADOW_ANIMATED_ELEVATION = 4
+const val SHADOW_ANIMATED_OFFSET = 5
+
+//TODO: Separar en UIQueueContainer y UIQueueContent
 
 @Composable
-fun UIQueue(
-    getQueueSize: () -> Int,
+fun BoxScope.UIQueue(
     getQueueBoxes: () -> List<NumberBox>,
     getSelectedSize: () -> Int = { -1 },
     getTravellingBox: () -> NumberBox,
     getTargetPosition: () -> BoardPosition,
     getLineLength: () -> Int,
 ) {
-    getQueueSize()
-        .takeIf{ it > 0 }
-        ?.let{ queueSize ->
-            val coroutineScope = rememberCoroutineScope()
-            UIQueueContainer(
-                queueSize = queueSize,
-                getSelectedSize = getSelectedSize,
-            )
-            UIQueueContent(
-                queueSize = queueSize,
-                getQueueBoxes = getQueueBoxes,
-                getTravellingBox = getTravellingBox,
-                getTargetPosition = getTargetPosition,
-                getLineLength = getLineLength,
-                scopeProvider = { coroutineScope }
-            )
-        }
+    val coroutineScope = rememberCoroutineScope()
+    val queueSize by remember {
+        derivedStateOf{ getQueueBoxes().size }
+    }
+    UIQueueContainer(
+        queueSize = queueSize,
+        getSelectedSize = getSelectedSize,
+    )
+    UIQueueArrow(
+        modifier = Modifier
+            .fillMaxWidth(0.8f)
+            .aspectRatio(3f)
+            .align(Alignment.BottomCenter)
+    )
+    if(queueSize > 0){
+        UIQueueContent(
+            queueSize = queueSize,
+            getQueueBoxes = getQueueBoxes,
+            getTravellingBox = getTravellingBox,
+            getTargetPosition = getTargetPosition,
+            getLineLength = getLineLength,
+            scopeProvider = { coroutineScope }
+        )
+    }
 }
 
 @Composable
@@ -88,28 +103,22 @@ private fun UIQueueContainer(
     queueSize: Int,
     getSelectedSize: () -> Int,
 ) {
-    println("Recomposicion de container")
+    //println("Recomposicion de container")
     val shape = Theme.shapes.softBlockShape
-    val selectedSize = getSelectedSize()
-
-    //Animated coloring
-    val greyStop: Float by animateFloatAsState(
-        when (selectedSize) {
-            -1 -> -0.2f
-            0 -> 0f
-            queueSize -> 0.8f
-            else -> (selectedSize * 7 / queueSize) / 10f
-        },
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessLow
-        ),
-        label = "greyStop"
+    val animatedValue = QueueContainerAnimatedValue(
+        queueSize = queueSize,
+        getSelectedSize = getSelectedSize,
     )
+
     val colorList = listOf(
         Theme.colors.primary,
         Theme.colors.grey,
-        Theme.colors.selected
+        createRelativeShader(
+            bgColor = Theme.colors.selected,
+            shaderColor = Theme.colors.secondary,
+            index = getSelectedSize(),
+            maxIndex = queueSize,
+        ),
     )
 
     //Queue container
@@ -123,17 +132,44 @@ private fun UIQueueContainer(
         )
         .clip(shape = shape)
         .drawBehind {
-            drawRect(
-                brush = Brush.linearGradient(
-                    colorStops = arrayOf(
-                        0.0f to colorList[0],
-                        (0.8f - greyStop) to colorList[1]
-                            .combineOver(colorList[0].withAlpha(greyStop + 0.2f)),
-                        1f to colorList[2]
+            animatedValue.value.let{ greyStop ->
+                drawRect(
+                    brush = Brush.linearGradient(
+                        colorStops = arrayOf(
+                            0.0f to colorList[0],
+                            (0.8f - greyStop) to colorList[1]
+                                .combineOver(colorList[0].withAlpha(greyStop + 0.2f)),
+                            1f to colorList[2]
+                        )
                     )
                 )
-            )
+            }
         }
+    )
+}
+
+@Composable
+private fun QueueContainerAnimatedValue(
+    queueSize: Int,
+    getSelectedSize: () -> Int,
+): State<Float> {
+    val selectedSize = getSelectedSize()
+    return animateFloatAsState(
+        targetValue = if(queueSize > 0){
+            when (selectedSize) {
+                -1 -> -0.2f
+                0 -> 0f
+                queueSize -> 0.8f
+                else -> (selectedSize * 7 / queueSize) / 10f
+            }
+        }else{
+            -0.2f
+        },
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "animatedQueueContainer"
     )
 }
 
@@ -152,31 +188,32 @@ private fun UIQueueContent(
             .aspectRatio(ASPECT_RATIO)
             .padding(CONTAINER_PADDING.dp)
     ) {
-        val propertiesList by remember { mutableStateOf(getPropertiesList(queueSize)) }
-        UIQueueArrow(
-            modifier = Modifier
-                .fillMaxWidth(0.8f)
-                .aspectRatio(3f)
-                .align(Alignment.BottomCenter)
-        )
+        val propertiesList = getPropertiesList(queueSize)
+
         UIQueueBoxes(
             queueSize = queueSize,
             getQueueBoxes = getQueueBoxes,
             propertiesList = propertiesList,
             containerWidth = maxWidth,
-            scopeProvider = scopeProvider,
         )
         UITravellingBox(
             getTravellingBox = getTravellingBox,
             getTargetPosition = getTargetPosition,
             getLineLength = getLineLength,
-            properties = propertiesList.first(),
+            boxRelativeSize = propertiesList.first().getSize(),
+            offset = propertiesList.first().let{
+                OffsetDp(
+                    x = it.offsetX(maxWidth),
+                    y = it.offsetY(maxWidth),
+                )
+            },
             containerWidth = maxWidth,
             scopeProvider = scopeProvider,
         )
     }
 }
 
+//TODO: Eliminar Box intermedia
 @Composable
 private fun UIQueueArrow(modifier: Modifier) {
     Box(
@@ -189,6 +226,7 @@ private fun UIQueueArrow(modifier: Modifier) {
             modifier = Modifier
                 .fillMaxHeight()
                 .aspectRatio(1f)
+                .padding(2.dp)
         )
     }
 }
@@ -199,23 +237,23 @@ private fun UIQueueBoxes(
     getQueueBoxes: () -> List<NumberBox>,
     propertiesList: List<QueueBoxProperties>,
     containerWidth: Dp,
-    scopeProvider: () -> CoroutineScope,
 ) {
-    val totalDuration = TOTAL_ACTION_DELAY.toInt() / queueSize
-
-    val queueBoxes = getQueueBoxes()
-    println("Recomposicion de cajas: $queueBoxes")
-
+    val queueIndices by remember {
+        derivedStateOf{
+            getQueueBoxes().indices
+        }
+    }
+    val shaderColor = Theme.colors.secondary.withAlpha(0.5f)
     if (propertiesList.size == queueSize) {
-        for (index in queueBoxes.indices.reversed()) {
+        for (index in queueIndices.reversed()) {
             //Animate offset and size
             QueueBoxesAnimatedValues(
                 propertiesList = propertiesList,
                 index = index,
                 containerWidth = containerWidth,
-                scopeProvider = scopeProvider,
+                getNumberBox = { getQueueBoxes()[index] },
             ).let { animationValues ->
-                Box(
+                BoxWithConstraints (
                     modifier = Modifier
                         .fillMaxWidth()
                         .aspectRatio(1f)
@@ -232,11 +270,18 @@ private fun UIQueueBoxes(
                                 }
                             transformOrigin = TransformOrigin(0f, 0f)
                         }
-
                 ) {
                     UINumberBox(
-                        numberBox = queueBoxes[index],
-                        position = index,
+                        getNumberBox = { getQueueBoxes()[index] },
+                        boxSize = maxWidth,
+                        applyShaderColor = {
+                            val color = createShaderColor(
+                                shaderColor,
+                                propertiesList.first().getSize(),
+                                (animationValues[QUEUEBOX_ANIMATED_SIZE]?.value as Float?)
+                            )
+                            Pair(color, false)
+                        },
                     )
                 }
             }
@@ -244,67 +289,17 @@ private fun UIQueueBoxes(
     }
 }
 
-@Composable
-private fun UITravellingBox(
-    getTravellingBox: () -> NumberBox,
-    getTargetPosition: () -> BoardPosition,
-    getLineLength: () -> Int,
-    properties: QueueBoxProperties,
-    containerWidth: Dp,
-    scopeProvider: () -> CoroutineScope,
-) {
-    val travellingBox = getTravellingBox()
-    val targetPosition = getTargetPosition()
-    val lineLength = getLineLength()
-
-    if (travellingBox !is NumberBox.EmptyBox
-        && targetPosition.isValidPosition(lineLength)
-    ) {
-        println("IN Travelling box")
-
-        val shadowShape = when (travellingBox) {
-            is NumberBox.BlockBox -> Theme.shapes.softBlockShape
-            is NumberBox.RegularBox -> Theme.shapes.regularShape
-            else -> Theme.shapes.roundShape
-        }
-
-        TravellingBoxAnimatedValues(
-            properties = properties,
-            containerWidth = containerWidth,
-            targetPosition = targetPosition,
-            lineLength = lineLength,
-            scopeProvider = scopeProvider,
-        ).let { animationValues ->
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(1f)
-                    .offset {
-                        (animationValues[TRAVELBOX_ANIMATED_OFFSET]?.value as Offset?)
-                            ?.toIntOffset()
-                            ?: IntOffset(0, 0)
-                    }
-                    .graphicsLayer {
-                        (animationValues[TRAVELBOX_ANIMATED_SIZE]?.value as Float?)
-                            ?.let { animatedSize ->
-                                scaleX = animatedSize
-                                scaleY = animatedSize
-                            }
-                        transformOrigin = TransformOrigin(0f, 0f)
-                        (animationValues[TRAVELBOX_ANIMATED_SHADOW]?.value as Float?)
-                            ?.let { animatedShadow ->
-                                shadowElevation = animatedShadow
-                            }
-                        shape = shadowShape
-                    }
-            ) {
-                UINumberBox(
-                    numberBox = travellingBox,
-                )
-            }
-        }
-    }
+private fun createShaderColor(
+    color: Color,
+    firstSize: Float,
+    animatedSize: Float?,
+): Color{
+    val alpha = animatedSize?.let{
+        0f + (firstSize - animatedSize) * 2f
+    } ?: 0f
+    return color.withAlpha(alpha)
 }
+
 
 //Animations for QueueBoxes and TravellingBox
 @Composable
@@ -312,43 +307,55 @@ private fun QueueBoxesAnimatedValues(
     propertiesList: List<QueueBoxProperties>,
     index: Int,
     containerWidth: Dp,
-    scopeProvider: () -> CoroutineScope,
+    getNumberBox: () -> NumberBox,
 ): Map<Int, Animatable<*, *>> {
-    //Initial and target values
-    val offsetValues = getInitialAndTargetOffset(
-        propertiesList = propertiesList,
-        index = index,
-        containerWidth = containerWidth,
-    )
-    val sizeValues = getInitialAndTargetSize(
-        propertiesList, index
-    )
+    val box = getNumberBox()
+
+    //Offset values
+    val offsetValues =
+        getInitialAndTargetOffset(
+                propertiesList = propertiesList,
+                index = index,
+                containerWidth = containerWidth,
+            )
+    val initialOffset = offsetValues.first.toPx()
+    val targetOffset = offsetValues.second.toPx()
     val offsetAnimation = Animatable(
-        initialValue = offsetValues.first,
+        initialValue = initialOffset,
         typeConverter = Offset.VectorConverter
     )
+
+    //Size values
+    val sizeValues =
+            getInitialAndTargetSize(
+                propertiesList = propertiesList,
+                index = index
+            )
     val sizeAnimation = Animatable(
         initialValue = sizeValues.first,
     )
 
     //Animation of values
-    scopeProvider().launch {
-        println("Animating queue numbers")
+    val duration = remember{ BASE_ACTION_DELAY.toInt() }
+    val delay = remember { duration / 5 }
+    LaunchedEffect(box) {
+        offsetAnimation.snapTo(initialOffset)
         offsetAnimation.animateTo(
-            targetValue = offsetValues.second,
+            targetValue = targetOffset,
             animationSpec = tween(
-                durationMillis = 450 - (70 * index),
-                delayMillis = 70 * index,
+                durationMillis = duration - (delay * index),
+                delayMillis = delay * index,
                 easing = EaseInOutCubic
             )
         )
     }
-    scopeProvider().launch {
+    LaunchedEffect(box) {
+        sizeAnimation.animateTo(sizeValues.first)
         sizeAnimation.animateTo(
             targetValue = sizeValues.second,
             animationSpec = tween(
-                durationMillis = 450 - (70 * index),
-                delayMillis = 70 * index,
+                durationMillis = duration - (delay * index),
+                delayMillis = delay * index,
                 easing = EaseInOutCubic
             )
         )
@@ -356,105 +363,6 @@ private fun QueueBoxesAnimatedValues(
     return mapOf(
         QUEUEBOX_ANIMATED_OFFSET to offsetAnimation,
         QUEUEBOX_ANIMATED_SIZE to sizeAnimation,
-    )
-}
-
-@Composable
-private fun TravellingBoxAnimatedValues(
-    properties: QueueBoxProperties,
-    containerWidth: Dp,
-    lineLength: Int,
-    targetPosition: BoardPosition,
-    scopeProvider: () -> CoroutineScope,
-): Map<Int, Animatable<*,*>> {
-    //TODO Abstraer estos calculos a GameScreen OR UICommons, con las constantes de medidas
-    val boxHeight = containerWidth / ASPECT_RATIO
-    val boardSide = (containerWidth + CONTAINER_PADDING.dp * 2) / 0.36f
-    val marginX = containerWidth / -8f
-    val boardMargin = boardSide * 0.1f
-    val boardBoxSize = boardSide * 0.8f / lineLength
-
-    //Size values
-    val initialSize = properties.getSize()
-    val targetSize = boardBoxSize / containerWidth
-    val middleSize = targetSize + 0.15f
-
-    val sizeAnimation = Animatable(
-        initialValue = initialSize,
-    )
-
-    //Offset values
-    val initialOffset = calculateOffsetValue(
-        properties,
-        containerWidth,
-    )
-    val targetOffset = targetPosition.let { position ->
-        val xOffset = marginX - 10.dp + boardMargin + (boardBoxSize * position.column)
-        //10.dp = PADDING (7.dp) + MEDIUM_BORDER (3.dp)
-        val yOffset = boxHeight + 22.dp + boardMargin + (boardBoxSize * position.row)
-        //22.dp = (PADDING (7.dp) + MEDIUM_BORDER (3.dp) + 1.dp) * 2
-        Offset(
-            x = xOffset.toPx(),
-            y = yOffset.toPx(),
-        )
-    }
-    val offsetAnimation = Animatable(
-        initialValue = initialOffset,
-        typeConverter = Offset.VectorConverter
-    )
-
-    //Elevation values
-    val shadowAnimation = Animatable(
-        initialValue = 0f,
-    )
-
-    //Animate values
-    scopeProvider().launch {
-        offsetAnimation.animateTo(
-            targetValue = targetOffset,
-            animationSpec = tween(
-                durationMillis = 400,
-                easing = EaseInOutCubic
-            )
-        )
-    }
-    scopeProvider().launch {
-        sizeAnimation.animateTo(
-            targetValue = middleSize,
-            animationSpec = tween(
-                durationMillis = 150,
-                easing = EaseInOutCubic
-            )
-        )
-        sizeAnimation.animateTo(
-            targetValue = targetSize,
-            animationSpec = tween(
-                durationMillis = 250,
-                easing = EaseInOutCubic
-            )
-        )
-    }
-    scopeProvider().launch {
-        shadowAnimation.animateTo(
-            targetValue = 21f,
-            animationSpec = tween(
-                durationMillis = 150,
-                easing = EaseInOutCubic
-            )
-        )
-        shadowAnimation.animateTo(
-            targetValue = 0f,
-            animationSpec = tween(
-                durationMillis = 250,
-                easing = EaseInOutCubic
-            )
-        )
-    }
-
-    return mapOf(
-        TRAVELBOX_ANIMATED_OFFSET to offsetAnimation,
-        TRAVELBOX_ANIMATED_SIZE to sizeAnimation,
-        TRAVELBOX_ANIMATED_SHADOW to shadowAnimation,
     )
 }
 
@@ -468,12 +376,12 @@ private fun getInitialAndTargetSize(
         second = propertiesList[index].getSize(),
     )
 
-@Composable
+
 private fun getInitialAndTargetOffset(
     propertiesList: List<QueueBoxProperties>,
     index: Int,
     containerWidth: Dp,
-): Pair<Offset, Offset> =
+): Pair<OffsetDp, OffsetDp> =
     Pair(
         first = calculateOffsetValue(
             properties = propertiesList.getInitialProperties(index),
@@ -485,14 +393,15 @@ private fun getInitialAndTargetOffset(
         )
     )
 
-@Composable
 private fun calculateOffsetValue(
     properties: QueueBoxProperties,
     containerWidth: Dp,
-): Offset = Offset(
-    x = properties.offsetX(containerWidth).toPx(),
-    y = properties.offsetY(containerWidth).toPx()
+): OffsetDp = OffsetDp(
+    x = properties.offsetX(containerWidth),
+    y = properties.offsetY(containerWidth)
 )
+
+
 
 //QueueBox properties
 private fun getPropertiesList(queueSize: Int): List<QueueBoxProperties> {

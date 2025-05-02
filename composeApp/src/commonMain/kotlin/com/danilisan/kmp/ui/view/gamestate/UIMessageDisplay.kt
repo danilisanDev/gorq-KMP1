@@ -4,14 +4,12 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -21,10 +19,8 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.danilisan.kmp.domain.entity.DisplayMessage
 import com.danilisan.kmp.domain.entity.DisplayMessage.Companion.DISPLAY_TEXT_ERROR
@@ -33,6 +29,7 @@ import com.danilisan.kmp.domain.entity.DisplayMessage.Companion.DISPLAY_TEXT_PRI
 import com.danilisan.kmp.domain.entity.DisplayMessage.Companion.DISPLAY_TEXT_SELECTED
 import com.danilisan.kmp.domain.entity.DisplayMessage.Companion.DISPLAY_TEXT_SUCCESS
 import com.danilisan.kmp.ui.theme.Theme
+import com.danilisan.kmp.ui.view.toSp
 import com.danilisan.kmp.ui.view.withAlpha
 import kotlinproject.composeapp.generated.resources.Res
 import kotlinproject.composeapp.generated.resources.refresh
@@ -44,8 +41,9 @@ import org.jetbrains.compose.resources.vectorResource
 
 @Composable
 fun UIMessageDisplay(
-    message: DisplayMessage,
+    getMessage: () -> DisplayMessage,
 ){
+    val message = getMessage()
     val gradient = Brush.horizontalGradient(
         colorStops = arrayOf(
             0f to Theme.colors.transparent,
@@ -82,8 +80,8 @@ fun UIMessageDisplay(
         }
 
         val boxSize = maxHeight
-        val fontSize = with(LocalDensity.current) {
-            boxSize.toSp() / (2.1 - message.sizeDiff * 0.2) }
+        val fontSize = (boxSize / (2.1f - message.sizeDiff * 0.2f)).toSp()
+
         Row(
             verticalAlignment = Alignment.CenterVertically
         ){

@@ -19,12 +19,12 @@ class LoadGameStateFromModelAction(
         updateState: suspend (GameStateUiState) -> Unit,
         gameMode: GameMode,
         params: Any?,
-    ) = withContext(dispatcher.default) {
+    ): Boolean = withContext(dispatcher.default) {
         //Check expected param type (GameStateUiState)
         val savedGameState = if (params is GameStateUiState) {
             params
         } else {
-            return@withContext
+            return@withContext false
         }
 
         //Create an empty board

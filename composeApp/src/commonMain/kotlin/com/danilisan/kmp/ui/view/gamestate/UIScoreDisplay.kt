@@ -19,8 +19,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -29,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.danilisan.kmp.domain.entity.Score
 import com.danilisan.kmp.ui.theme.Theme
+import com.danilisan.kmp.ui.view.toSp
 import com.danilisan.kmp.ui.view.withAlpha
 import kotlinproject.composeapp.generated.resources.Res
 import kotlinproject.composeapp.generated.resources.lines
@@ -41,8 +40,8 @@ const val MAX_DISPLAY: Long = 1_000_000_000_000L
 
 @Composable
 fun UIScoreDisplay(
-    score: Score,
-    goldenStar: Boolean? = null,
+    getScore: () -> Score,
+    isGoldenStar: (Score) -> Boolean? = { null },
 ){
     BoxWithConstraints(
         modifier = Modifier
@@ -53,7 +52,7 @@ fun UIScoreDisplay(
         val shape = RoundedCornerShape(topStartPercent = 14, topEndPercent = 14)
         val borderGradient = Brush.verticalGradient(
             listOf(
-                Theme.colors.secondary.withAlpha(0.1f),
+                Theme.colors.secondary.withAlpha(0.6f),
                 Theme.colors.secondary
             )
         )
@@ -79,8 +78,9 @@ fun UIScoreDisplay(
                     .fillMaxHeight(0.75f),
                 verticalAlignment = Alignment.Bottom
             ){
+                val score = getScore()
                 val size: @Composable (Int) -> TextUnit = { div ->
-                    with(LocalDensity.current) { boxSize.toSp() / div}
+                    (boxSize / div).toSp()
                 }
 
                 val bigNumbers = getBigNumbersString(score.points)
@@ -127,11 +127,13 @@ fun UIScoreDisplay(
                     style = TextStyle(
                         fontSize = size(10),
                         fontWeight = FontWeight.Bold,
-                        brush = Brush.linearGradient(when(goldenStar){
-                            true -> Theme.colors.getCombinedStarGradient(Theme.colors.golden)
-                            false -> Theme.colors.getCombinedStarGradient(Theme.colors.grey)
-                            else -> listOf(Theme.colors.primary, Theme.colors.primary)
-                        }),
+                        brush = Brush.linearGradient(
+                            when(isGoldenStar(score)){
+                                true -> Theme.colors.getCombinedStarGradient(Theme.colors.golden)
+                                false -> Theme.colors.getCombinedStarGradient(Theme.colors.grey)
+                                else -> listOf(Theme.colors.primary, Theme.colors.primary)
+                            }
+                        ),
                     )
                 )
             }

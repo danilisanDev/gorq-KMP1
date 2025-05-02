@@ -1,7 +1,8 @@
 package com.danilisan.kmp.domain.action.gamestate
 
 import com.danilisan.kmp.core.provider.DispatcherProvider
-import com.danilisan.kmp.domain.action.gamestate.GameStateActionManager.Companion.TOTAL_ACTION_DELAY
+import com.danilisan.kmp.domain.action.gamestate.GameStateActionManager.Companion.BASE_ACTION_DELAY
+import com.danilisan.kmp.domain.action.gamestate.GameStateActionManager.Companion.INCOMPLETE_SELECTION_DELAY
 import com.danilisan.kmp.domain.entity.BoardPosition
 import com.danilisan.kmp.domain.entity.GameMode
 import com.danilisan.kmp.domain.usecase.gamestate.GetDisplayMessageUseCase
@@ -19,12 +20,12 @@ class SelectBoxAction(
         updateState: suspend (GameStateUiState) -> Unit,
         gameMode: GameMode,
         params: Any?,
-    ) = withContext(dispatcher.default) {
+    ): Boolean = withContext(dispatcher.default) {
         //Check expected param type (BoardPosition)
         val selectedPosition = if (params is BoardPosition) {
             params
         } else {
-            return@withContext
+            return@withContext false
         }
 
         //Toggle selected position from state list
@@ -58,7 +59,7 @@ class SelectBoxAction(
         //Check minimum selection size
         val selectionSize = selectedValues.size
         if (selectionSize < gameMode.minSelection) {
-            return@withContext
+            return@withContext true
         }
 
         //Check win condition
@@ -68,9 +69,9 @@ class SelectBoxAction(
                     getState, updateState,
                     incompleteSelection = true
                 )
-                delay(TOTAL_ACTION_DELAY)
+                delay(INCOMPLETE_SELECTION_DELAY)
                 if (!getState().incompleteSelection) {
-                    return@withContext
+                    return@withContext true
                 } else {
                     updateStateFields(
                         getState, updateState,
@@ -78,14 +79,14 @@ class SelectBoxAction(
                     )
                 }
             } else {
-                delay(TOTAL_ACTION_DELAY)
+                delay(INCOMPLETE_SELECTION_DELAY)
             }
             updateGameAction(getState, updateState, gameMode,
                 params = UpdateGameAction.UpdateOptions.AFTER_SELECTION
             )
         } else if (selectionSize >= gameMode.maxSelection) {
             //Empty selected numbers if size == maxSelection
-            delay(TOTAL_ACTION_DELAY / 2)
+            delay(BASE_ACTION_DELAY / 2)
             updateStateFields(
                 getState, updateState,
                 selectedPositions = emptyList(),
@@ -95,5 +96,6 @@ class SelectBoxAction(
                 )
             )
         }
+        return@withContext true
     }
 }

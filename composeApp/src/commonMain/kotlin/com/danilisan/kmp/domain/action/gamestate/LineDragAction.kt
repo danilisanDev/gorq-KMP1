@@ -17,7 +17,7 @@ import kotlinproject.composeapp.generated.resources.Res
 import kotlinproject.composeapp.generated.resources.displayMsgNewLines
 import kotlinx.coroutines.withContext
 
-class DragLineAction(
+class LineDragAction(
     override val dispatcher: DispatcherProvider,
     private val updateSilverStarValuesUseCase: UpdateSilverStarValuesUseCase,
     private val getWinningLinesUseCase: GetWinningLinesUseCase,
@@ -28,25 +28,31 @@ class DragLineAction(
         updateState: suspend (GameStateUiState) -> Unit,
         gameMode: GameMode,
         params: Any?,
-    ) = withContext(dispatcher.default) {
+    ): Boolean = withContext(dispatcher.default) {
         //Check expected type for params (BoardPosition)
-        if (params !is BoardPosition) return@withContext
+        if (params !is BoardPosition) return@withContext false
 
         //Stored positions in state
         val linedPositions = getState().linedPositions.toMutableList()
-        if (linedPositions.isEmpty()) return@withContext //Impossible case
+        if (linedPositions.isEmpty()) return@withContext false//Impossible case
 
         //Return if there is no movement towards new position
-        if (linedPositions.last() == params) return@withContext
+        if (linedPositions.last() == params) return@withContext false
+
+        //Add null to exclude select action
+        if(linedPositions.size == 1 && linedPositions.first() != null){
+            linedPositions.add(0, null)
+        }
 
         //Update state with new position
         val lineLength = gameMode.lineLength
         val completedLines = getState().completedLines.toMutableList()
-        val positionsInCurrentLine = linedPositions.run {
+        val positionsInCurrentLine = linedPositions.filterNotNull().run {
             try{
-                subList(completedLines.size * (lineLength - 1), size).filterNotNull()
+                subList(completedLines.size * (lineLength - 1), size)
             }catch(e: Exception){
-                return@withContext
+                //TODO: Napier.e(mensaje de error)
+                return@withContext false
             }
         }
         var board: Map<BoardPosition, NumberBox>? = null
@@ -54,8 +60,10 @@ class DragLineAction(
         linedPositions
             .takeIf{ it.size > 1 && it[it.size - 2] == params }
             ?.run{ //Movement backwards
+                //TODO: Si la última es null, no se elimina
                 removeAt(size - 1) //Remove last position
-                    .takeIf { it != null }?.run {
+                    //.takeIf { it != null }
+                    .run {
                         //If removed is not null -> Check line undoing
                         if (positionsInCurrentLine.size == 1 && completedLines.isNotEmpty()) {
                             completedLines.run {
@@ -79,9 +87,8 @@ class DragLineAction(
                     }
         } ?: run{ //Movement towards new position
             val lastRealPosition = linedPositions.filterNotNull().last()
-            if (!params.isAdjacentPosition(lastRealPosition) || params in positionsInCurrentLine) {
-                linedPositions.addPositionOrNull()
-            } else {//Check if last position + new position are in the same line
+            if (params.isAdjacentPosition(lastRealPosition) && params !in positionsInCurrentLine) {
+                //Check if last position + new position are in the same line
                 val newLinedPositions = positionsInCurrentLine + params
                 BoardHelper.getLineIdFromPositions(
                     positions = newLinedPositions,
@@ -92,7 +99,7 @@ class DragLineAction(
                                 && lineId !in completedLines
                     }
                     ?.let { newLineId ->
-                        linedPositions.addPositionOrNull(params)
+                        linedPositions.add(params)
                         if (newLinedPositions.size == lineLength) {
                             completedLines.add(newLineId)
                             //Add value to SilverBox
@@ -108,9 +115,7 @@ class DragLineAction(
                             linedPositions,
                             lineLength
                         )
-                    } ?: run {
-                    linedPositions.addPositionOrNull()
-                }
+                    }
             }
         }
 
@@ -139,7 +144,6 @@ class DragLineAction(
                     sizeDiff = lines - 1,
                 )
             }
-
         }
         updateStateFields(
             getState, updateState,
@@ -150,6 +154,8 @@ class DragLineAction(
             selectedPositions = emptyList(),
             displayMessage = newMessage,
         )
+
+        return@withContext true
     }
 }
 
@@ -168,12 +174,12 @@ private fun printLinesState(
     )
 }
 
-private fun MutableList<BoardPosition?>.addPositionOrNull(
-    newPosition: BoardPosition? = null
-) = this.run {
-    remove(null)
-    add(newPosition)
-}
+//private fun MutableList<BoardPosition?>.addPositionOrNull(
+//    newPosition: BoardPosition? = null
+//) = this.run {
+//    remove(null)
+//    add(newPosition)
+//}
 
 
 

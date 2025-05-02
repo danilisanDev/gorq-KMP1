@@ -13,17 +13,21 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import com.danilisan.kmp.ui.theme.Theme
+import com.danilisan.kmp.ui.view.toSp
 import kotlinproject.composeapp.generated.resources.Res
 import kotlinproject.composeapp.generated.resources.refresh
 import org.jetbrains.compose.resources.vectorResource
 
+const val RELOADS_LEFT_TEXT_DIV = 1.5f
+
 @Composable
-fun UIReloadsLeft(turnsLeft: Int) {
+fun UIReloadsLeft(
+    getTurnsLeft: () -> Int
+) {
     val highlightColor = Theme.colors.primary
 
     BoxWithConstraints(
@@ -37,13 +41,13 @@ fun UIReloadsLeft(turnsLeft: Int) {
         ,
         contentAlignment = Alignment.Center,
     ) {
-        val fontSize = with(LocalDensity.current) { maxHeight.toSp() / 1.5}
+        val fontSize = (maxHeight / RELOADS_LEFT_TEXT_DIV).toSp()
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text(
-                text = turnsLeft.toString(),
+                text = getTurnsLeft().toString(),
                 style = TextStyle(
                     fontSize = fontSize,
                     fontWeight = FontWeight.Bold,
@@ -59,9 +63,4 @@ fun UIReloadsLeft(turnsLeft: Int) {
             )
         }
     }
-}
-
-@Composable
-private fun highLightLine(top: Boolean) {
-
 }

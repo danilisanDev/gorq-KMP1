@@ -28,7 +28,7 @@ data class AppColors(
 
 private val golden = Color(0xFFFFB707)
 private val blue = Color(0xFF077AD7)
-private val green = Color(0xFF49A77A)
+private val green = Color(0xFF287D49)
 private val purple = Color(0xFF9575CD)
 private val magenta = Color(0xFFE71E77)
 private val red = Color(0xFFCC444B)
@@ -42,6 +42,24 @@ val LightAppColors = AppColors(
     secondary = Color.Black,
     grey = Color.White + Color.Black,
     golden = golden,
+    success = green,
+    error = red,
+    selected = blue,
+    display = yellow,
+    rainbowGradient = listOf(
+        purple,magenta,red,orange,yellow,green,blue,purple
+    ),
+    outsetGradient = listOf(
+        Color.White.withAlpha(0.4f),
+        Color.Black.withAlpha(0.4f)
+    ),
+    insetGradient = listOf(
+        Color.Black.withAlpha(0.8f),
+        Color.White.withAlpha(0.2f)
+    ),
+    regularGradient = listOf(
+        Color.Transparent, Color.Black.withAlpha(0.3f)
+    ),
     starGradient = listOf(
         Color.White.withAlpha(0.3f),
         Color.Transparent,
@@ -51,21 +69,5 @@ val LightAppColors = AppColors(
         Color.Transparent,
         Color.White.withAlpha(0.3f),
     ),
-    success = green,
-    error = red,
-    selected = blue,
-    display = yellow,
-    rainbowGradient = listOf(
-        purple,magenta,red,orange,yellow,green,blue,purple
-    ),
-    outsetGradient = listOf(
-        Color.Transparent, Color.Black.withAlpha(0.6f)
-    ),
-    insetGradient = listOf(
-        Color.Transparent,Color.White.withAlpha(0.6f)
-    ),
-    regularGradient = listOf(
-        Color.Transparent, Color.Black.withAlpha(0.1f)
-    )
 )
 

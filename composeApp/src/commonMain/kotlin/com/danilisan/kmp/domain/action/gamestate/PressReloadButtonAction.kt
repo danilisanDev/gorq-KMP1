@@ -18,9 +18,9 @@ class PressReloadButtonAction(
         updateState: suspend (GameStateUiState) -> Unit,
         gameMode: GameMode,
         params: Any?,
-    ) = withContext(dispatcher.default) {
+    ): Boolean = withContext(dispatcher.default) {
         //Does not expect any params
-        if (params != null) return@withContext
+        if (params != null) return@withContext false
 
         //Current board state
         val boardState = getState().boardState

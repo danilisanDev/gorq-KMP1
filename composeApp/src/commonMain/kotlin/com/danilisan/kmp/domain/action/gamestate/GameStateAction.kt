@@ -16,7 +16,7 @@ interface GameStateAction {
         updateState: suspend (GameStateUiState) -> Unit,
         gameMode: GameMode,
         params: Any? = null,
-    )
+    ): Boolean
 
     suspend fun updateStateFields(
         getState: suspend () -> GameStateUiState,

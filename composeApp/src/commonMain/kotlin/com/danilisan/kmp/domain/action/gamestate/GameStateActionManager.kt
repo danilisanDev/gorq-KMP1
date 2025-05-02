@@ -3,12 +3,11 @@ package com.danilisan.kmp.domain.action.gamestate
 import com.danilisan.kmp.domain.entity.BoardPosition
 import com.danilisan.kmp.domain.entity.GameMode
 import com.danilisan.kmp.domain.usecase.gamestate.GetSavedGameStateUseCase
-import com.danilisan.kmp.domain.usecase.gamestate.SaveGameStateUseCase
 import com.danilisan.kmp.ui.state.GameModeState
 import com.danilisan.kmp.ui.state.GameStateUiState
 
 /**
- * RESPONSABILITIES
+ * RESPONSIBILITIES
  *  1. Model persistence (get & update gameStateModel)
  *  2. Full control over UI-GameState (delegated by viewModel)
  *  3. Update UI-GameMode state (delegated by viewModel)
@@ -23,9 +22,9 @@ class GameStateActionManager(
     private val pressReloadButtonAction: PressReloadButtonAction,
     private val updateGameAction: UpdateGameAction,
     private val selectBoxAction: SelectBoxAction,
-    private val startLineAction: StartLineAction,
-    private val dragLineAction: DragLineAction,
-    private val endLineAction: EndLineAction,
+    private val lineStartAction: LineStartAction,
+    private val lineDragAction: LineDragAction,
+    private val lineEndAction: LineEndAction,
 ) {
     //Delegate state holders
     private var gameMode: GameMode = GameMode.EasyAdd //Default game mode
@@ -83,21 +82,24 @@ class GameStateActionManager(
         )
 
     suspend fun startLine(startingPosition: BoardPosition?) =
-        startLineAction(
+        lineStartAction(
             getStateMethod, updateStateMethod, gameMode,
             params = startingPosition,
         )
 
     suspend fun dragLine(newPosition: BoardPosition?) =
-        dragLineAction(
+        lineDragAction(
             getStateMethod, updateStateMethod, gameMode,
             params = newPosition,
         )
 
     suspend fun endLine() =
-        endLineAction(getStateMethod, updateStateMethod, gameMode)
+        lineEndAction(getStateMethod, updateStateMethod, gameMode)
 
     companion object {
-        const val TOTAL_ACTION_DELAY = 1000L
+        const val BASE_ACTION_DELAY = 300L
+        const val TRAVEL_ACTION_DELAY = BASE_ACTION_DELAY * 2
+        const val UPDATE_BOARD_TOTAL_DELAY = BASE_ACTION_DELAY * 2
+        const val INCOMPLETE_SELECTION_DELAY = BASE_ACTION_DELAY * 3
     }
 }

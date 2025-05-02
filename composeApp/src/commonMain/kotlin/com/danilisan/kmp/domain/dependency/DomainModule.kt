@@ -18,9 +18,9 @@ val domainModule = module{
     factoryOf(::PressReloadButtonAction)
     factoryOf(::CheckBoardStateAction)
     factoryOf(::SelectBoxAction)
-    factoryOf(::StartLineAction)
-    factoryOf(::DragLineAction)
-    factoryOf(::EndLineAction)
+    factoryOf(::LineStartAction)
+    factoryOf(::LineDragAction)
+    factoryOf(::LineEndAction)
 
     //Gamestate Usecases
     factoryOf(::GetSavedGameStateUseCase)

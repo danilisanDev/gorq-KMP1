@@ -3,13 +3,13 @@ package com.danilisan.kmp
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -18,33 +18,36 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CutCornerShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.scale
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.danilisan.kmp.domain.entity.BoardHelper.getLineLength
-import com.danilisan.kmp.domain.entity.BoardPosition
-import com.danilisan.kmp.domain.entity.DisplayMessage
-import com.danilisan.kmp.domain.entity.GameMode
+import androidx.compose.ui.unit.sp
 import com.danilisan.kmp.domain.entity.NumberBox
 import com.danilisan.kmp.domain.entity.Score
-import com.danilisan.kmp.ui.state.BoardState
 import com.danilisan.kmp.ui.theme.Theme
+import com.danilisan.kmp.ui.view.createRelativeShader
 import com.danilisan.kmp.ui.view.combineOver
 import com.danilisan.kmp.ui.view.plus
 import com.danilisan.kmp.ui.view.withAlpha
-import com.danilisan.kmp.ui.view.gamestate.UIAdBanner
-import com.danilisan.kmp.ui.view.gamestate.UIBoardContainer
-import com.danilisan.kmp.ui.view.gamestate.UIMessageDisplay
-import com.danilisan.kmp.ui.view.gamestate.UIQueue
-import com.danilisan.kmp.ui.view.gamestate.UIReloadButton
-import com.danilisan.kmp.ui.view.gamestate.UIReloadsLeft
+import com.danilisan.kmp.ui.view.gamestate.UINumberBox
 import com.danilisan.kmp.ui.view.gamestate.UIScoreDisplay
+import com.danilisan.kmp.ui.view.toArrayWithAbsoluteColorStops
+import com.danilisan.kmp.ui.view.toPx
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
@@ -63,10 +66,39 @@ class MainActivity : ComponentActivity() {
 fun ScorePreview(){
     val score = Score(9_999_999_999_999L, 101, 12)
     UIScoreDisplay(
-        score,
-        false
+        {score},
+        {false}
     )
 }
+
+@Preview
+@Composable
+fun Caja(){
+    val shadowColor = Theme.colors.secondary
+    Column(
+        Modifier.fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        BoxWithConstraints(Modifier
+            .size(200.dp)
+            .border(
+                width = 3.dp,
+                color = Color.Black
+            )
+            .background(Color.Green)
+            .padding(20.dp)
+            .graphicsLayer {
+                translationY = -100f
+            }
+        ) {
+            UINumberBox(
+                getNumberBox = { NumberBox.RegularBox(5) },
+                boxSize = maxWidth
+            )
+        }
+    }
+}
+
 
 @Composable
 fun Semaforo(){
@@ -76,32 +108,81 @@ fun Semaforo(){
         .padding(10.dp)
         .background(Color.LightGray)
     ){
-        BlinkingLight(color = Theme.colors.primary, on = 1f) //Encendida
-        BlinkingLight(color = Theme.colors.primary + Theme.colors.grey, on = 0.5f) //A medias
+        BlinkingLight(color = Theme.colors.primary + Theme.colors.grey.withAlpha(0f), on = 1f) //Encendida
+        BlinkingLight(color = Theme.colors.primary + Theme.colors.grey.withAlpha(1f), on = 1f) //A medias
         BlinkingLight(color = Theme.colors.grey, on = 0f) //Apagada
         BlinkingLight(color = Theme.colors.success, on = 1f) //Encendida
+        BlinkingLight(color = Theme.colors.success, on = 0.5f) //A medias
 
     }
 }
 
-@Preview
+
+
+
 @Composable
-fun BoardFramePreview(){
-    Box(modifier =
-        Modifier
-            .size(500.dp)
-            .aspectRatio(1f)
-            .background(Color.DarkGray)
+fun BoxesPreview(){
+    Column(Modifier
+        .fillMaxHeight()
+        .background(Color.Red)
+        .aspectRatio(1f / 5)
     ){
-        UIBoardContainer(
-            lineLength = 3,
-            board = Mocks.easyAddBoard,
-            boardState = BoardState.READY,
+        NumberBoxPreview(0)
+        NumberBoxPreview(1)
+        NumberBoxPreview(2)
+        NumberBoxPreview(3)
+        NumberBoxPreview(4)
+    }
+}
+@Composable
+fun NumberBoxPreview(
+    selectIndex: Int,
+    maxSelection: Int = 5
+){
+    val queueShader = createRelativeShader(
+        shaderColor = Theme.colors.secondary,
+        index = selectIndex,
+        maxIndex = maxSelection,
+        highlightFirst = true,
+    )
+    val selectedShader = createRelativeShader(
+        bgColor = Theme.colors.selected,
+        shaderColor = Theme.colors.secondary,
+        index = selectIndex,
+        maxIndex = maxSelection,
+    )
+    val linedShader = createRelativeShader(
+        bgColor = Theme.colors.success.withAlpha(0.8f),
+        shaderColor = Theme.colors.primary,
+        index = selectIndex,
+        maxIndex = maxSelection,
+    )
+    val linedBrush = Brush.linearGradient(listOf(
+        Theme.colors.success,
+        Theme.colors.success,
+    ))
+    val selectableBrush = Brush.linearGradient(
+        Theme.colors.outsetGradient.map{ it + selectedShader }
+    )
+    val selectedBrush = Brush.linearGradient(
+        Theme.colors.insetGradient.map{ it + selectedShader }
+    )
+
+    BoxWithConstraints (modifier =
+        Modifier
+            .fillMaxWidth(0.9f)
+            .aspectRatio(1f)
+    ){
+        UINumberBox(
+            getNumberBox = { NumberBox.RegularBox(5) },
+            boxSize = maxWidth,
+            applyBorderStyle = { linedBrush },
+            applyShaderColor = { Pair(linedShader, true) },
         )
     }
 }
 
-@Preview
+
 @Composable
 fun BlinkingLight(color: Color = Color.Green , on: Float = 1f){
     // Configura la animación de color

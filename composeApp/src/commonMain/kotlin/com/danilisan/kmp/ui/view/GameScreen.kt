@@ -16,15 +16,18 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import cafe.adriel.voyager.core.screen.Screen
+import com.danilisan.kmp.domain.entity.BoardPosition
+import com.danilisan.kmp.domain.entity.DisplayMessage
+import com.danilisan.kmp.domain.entity.NumberBox
+import com.danilisan.kmp.domain.entity.Score
 import com.danilisan.kmp.ui.state.BoardState
 import com.danilisan.kmp.ui.theme.Theme
 import com.danilisan.kmp.ui.view.gamestate.UIAdBanner
@@ -35,6 +38,7 @@ import com.danilisan.kmp.ui.view.gamestate.UIReloadButton
 import com.danilisan.kmp.ui.view.gamestate.UIReloadsLeft
 import com.danilisan.kmp.ui.view.gamestate.UIScoreDisplay
 import com.danilisan.kmp.ui.viewmodel.GameStateViewModel
+import kotlinx.coroutines.flow.map
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.annotation.KoinExperimentalAPI
 import org.koin.core.component.KoinComponent
@@ -53,89 +57,113 @@ class GameScreen: Screen, KoinComponent {
         BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
-                .background(color = Theme.colors.secondary.withAlpha(0.7f)),
+                .background(
+                    Theme.colors.secondary.withAlpha(0.7f)
+                ),
             contentAlignment = Alignment.TopCenter,
         ){
-            val dimensions by remember{ mutableStateOf(constraints) }
-            val isPortraitMode = (dimensions.maxHeight / dimensions.maxWidth) >= 16f / 9f
-            if(isPortraitMode){
-                PortraitGameScreen(
-                    isPortraitMode,
-                    maxWidth = dimensions.maxWidth.toFloat(),
-                    maxHeight = dimensions.maxHeight.toFloat(),
-                )
-            }else{
-                PortraitGameScreen(
-                    isPortraitMode,
-                    maxWidth = dimensions.maxWidth.toFloat(),
-                    maxHeight = dimensions.maxHeight.toFloat(),
-                )
-            }
+            val isPortraitMode = (maxHeight / maxWidth) >= 16f / 9f
+
+            println("Pintando fondo")
+
+            //Static background
+            UIMosaicBackground(
+                maxWidth = maxWidth.toPx(),
+                maxHeight = maxHeight.toPx(),
+            )
+            GameScaffold(isPortraitMode)
         }
     }
 }
 
     @OptIn(KoinExperimentalAPI::class)
     @Composable
-    private fun PortraitGameScreen(
+    private fun GameScaffold(
         portraitMode: Boolean,
-        maxWidth: Float,
-        maxHeight: Float,
     ){
+        //Viewmodel injection
         val viewModel = koinViewModel<GameStateViewModel>()
-        val gameState by viewModel.gameState.collectAsState()
-        val gameMode by viewModel.gameModeState.collectAsState()
 
-        //TODO Susituir acceso directo por lambdas en los elementos hijo
-        val turnsLeft = gameState.reloadsLeft
-        val queue = gameState.queue
-        val board = gameState.board
-        val lines = gameState.availableLines
-        val score = gameState.score
-        val state = gameState.boardState
-        val message = gameState.displayMessage
-        val reloadCost = when(state){
-            BoardState.READY -> gameMode.reloadQueueCost
-            BoardState.BLOCKED -> gameMode.reloadBoardCost
-            else -> 0
-        }
-        val bgGradient = listOf(
-            Theme.colors.transparent,
-            when(state){
-                BoardState.READY -> Theme.colors.secondary.withAlpha(0.7f)
-                BoardState.BLOCKED -> Theme.colors.error.withAlpha(0.3f)
-                BoardState.BINGO -> Theme.colors.success.withAlpha(0.3f)
-                BoardState.GAMEOVER -> Theme.colors.primary.withAlpha(0.7f)
-            },
+        //State collection
+        val gameMode by viewModel.gameModeState.collectAsState()
+        val board = viewModel.gameState.map { it.board }.collectAsState(
+            initial = emptyMap()
+        )
+        val queue = viewModel.gameState.map { it.queue }.collectAsState(
+            initial = emptyList()
+        )
+        val reloadsLeft = viewModel.gameState.map { it.reloadsLeft }.collectAsState(
+            initial = 0
+        )
+        val score = viewModel.gameState.map { it.score }.collectAsState(
+            initial = Score()
+        )
+        val boardState = viewModel.gameState.map { it.boardState }.collectAsState(
+            initial = BoardState.READY
+        )
+        val availableLines = viewModel.gameState.map { it.availableLines }.collectAsState(
+            initial = emptySet()
+        )
+        val displayMessage = viewModel.gameState.map { it.displayMessage }.collectAsState(
+            initial = DisplayMessage()
+        )
+        val selectedPositions = viewModel.gameState.map { it.selectedPositions }.collectAsState(
+            initial = emptyList()
+        )
+        val incompleteSelection = viewModel.gameState.map { it.incompleteSelection }.collectAsState(
+            initial = false
+        )
+        val travellingBox = viewModel.gameState.map { it.travellingBox }.collectAsState(
+            initial = NumberBox.EmptyBox()
+        )
+        val targetPositionFromQueue = viewModel.gameState.map { it.targetPositionFromQueue }.collectAsState(
+            initial = BoardPosition()
+        )
+        val linedPositions = viewModel.gameState.map { it.linedPositions }.collectAsState(
+            initial = emptyList()
+        )
+        val completedLines = viewModel.gameState.map { it.completedLines }.collectAsState(
+            initial = emptyList()
+        )
+        val isLoading = viewModel.gameState.map { it.isLoading }.collectAsState(
+            initial = true
         )
 
-
-        val isLoading = gameState.isLoading
-
-        val enabledReload = (!isLoading && turnsLeft >= reloadCost)
-        val enabledBoard = (!isLoading || gameState.incompleteSelection) && state == BoardState.READY
+        //Background gradient colors
+        val bgColors =
+            listOf(
+                Theme.colors.transparent,
+                Theme.colors.secondary.withAlpha(0.7f),
+                Theme.colors.error.withAlpha(0.3f),
+                Theme.colors.success.withAlpha(0.3f) + Theme.colors.secondary,
+                Theme.colors.primary.withAlpha(0.7f),
+            )
 
         val orientationText = if(portraitMode){
             "Modo retrato"
         }else{
             "Modo paisaje"
         }
-        UIMosaicBackground(
-            maxWidth = maxWidth,
-            maxHeight = maxHeight,
-        )
-        Canvas(modifier = Modifier
-            .fillMaxSize()
-        ){
-            println("Pintando fondo")
-            drawRect(
-                brush = Brush.linearGradient(bgGradient)
-            )
-        }
 
+        //
         Column(
             modifier = Modifier
-                .fillMaxSize(),
+                .fillMaxSize()
+                .drawBehind{
+                    drawRect(
+                        brush = Brush.linearGradient(
+                            listOf(
+                                bgColors[0],
+                                when(boardState.value) {
+                                    BoardState.READY -> bgColors[1]
+                                    BoardState.BLOCKED -> bgColors[2]
+                                    BoardState.BINGO -> bgColors[3]
+                                    BoardState.GAMEOVER -> bgColors[4]
+                                }
+                            )
+                        )
+                    )
+                },
             verticalArrangement = Arrangement.Top,
             horizontalAlignment = Alignment.CenterHorizontally,
         ){
@@ -162,15 +190,14 @@ class GameScreen: Screen, KoinComponent {
                             .weight(2f),
                     ) {
                         UIQueue(
-                            getQueueSize = { gameMode.queueSize },
-                            getQueueBoxes = { gameState.queue },
-                            getSelectedSize = { gameState.selectedPositions.size
-                                                .takeIf{ gameState.boardState == BoardState.READY }
+                            getLineLength = { gameMode.lineLength },
+                            getQueueBoxes = { queue.value },
+                            getSelectedSize = { selectedPositions.value.size
+                                                .takeIf{ boardState.value == BoardState.READY }
                                                 ?: -1
                                            },
-                            getTravellingBox = { gameState.travellingBox },
-                            getTargetPosition = { gameState.targetPositionFromQueue },
-                            getLineLength = { gameMode.lineLength },
+                            getTravellingBox = { travellingBox.value },
+                            getTargetPosition = { targetPositionFromQueue.value },
                         )
                     }
                     Spacer(Modifier
@@ -188,7 +215,9 @@ class GameScreen: Screen, KoinComponent {
                                 .fillMaxWidth(),
                             contentAlignment = Alignment.Center,
                         ) {
-                            UIReloadsLeft(turnsLeft = turnsLeft)
+                            UIReloadsLeft(
+                                getTurnsLeft = { reloadsLeft.value }
+                            )
                         }
                         Box(//Reload button
                             modifier = Modifier
@@ -197,9 +226,15 @@ class GameScreen: Screen, KoinComponent {
                             contentAlignment = Alignment.Center,
                         ) {
                             UIReloadButton(
-                                boardState = state,
-                                reloadCost = reloadCost,
-                                isEnabled = enabledReload,
+                                getBoardState = { boardState.value },
+                                getReloadCost = { boardState ->
+                                    when(boardState){
+                                        BoardState.READY -> gameMode.reloadQueueCost
+                                        BoardState.BLOCKED -> gameMode.reloadBoardCost
+                                        else -> 0
+                                    }
+                                },
+                                isEnabled = { !isLoading.value && reloadsLeft.value > 0 },
                                 buttonAction = viewModel::reloadButtonHandler
                             )
                         }
@@ -216,14 +251,20 @@ class GameScreen: Screen, KoinComponent {
                         .zIndex(1f)
                 ) {
                     UIBoardContainer(
-                        lineLength = gameMode.lineLength,
-                        board = board,
-                        selectedPositions = gameState.selectedPositions,
-                        linedPositions = gameState.linedPositions.filterNotNull(),
-                        completedLines = gameState.completedLines,
-                        availableLines = lines,
-                        boardState = state,
-                        isEnabled = enabledBoard,
+                        getLineLength = { gameMode.lineLength },
+                        getBoard = { board.value },
+                        getTargetPositionFromQueue = { targetPositionFromQueue.value },
+                        getSelectedPositions = { selectedPositions.value },
+                        getLinedPositions = { linedPositions.value.filterNotNull() },
+                        getCompletedLines = { completedLines.value },
+                        getAvailableLines = { availableLines.value },
+                        getBoardState = {  boardState.value },
+                        isEnabled = { isSelectAction ->
+                            boardState.value == BoardState.READY &&
+                                     ( !isLoading.value ||
+                                             (isSelectAction && incompleteSelection.value)
+                                     )
+                        },
                         selectAction = viewModel::selectBoxHandler,
                         dragAction = viewModel::dragLineHandler,
                     )
@@ -238,7 +279,9 @@ class GameScreen: Screen, KoinComponent {
                         .aspectRatio(10f),
                     contentAlignment = Alignment.Center
                 ) {
-                    UIMessageDisplay(message)
+                    UIMessageDisplay(
+                        getMessage = { displayMessage.value }
+                    )
                 }
                 Spacer(Modifier
                     .fillMaxWidth()
@@ -251,8 +294,8 @@ class GameScreen: Screen, KoinComponent {
                     .weight(1f),
             ){
                 UIScoreDisplay(
-                    score = score,
-                    goldenStar = gameMode.isGoldenStar(score)
+                    getScore = { score.value },
+                    isGoldenStar = { score -> gameMode.isGoldenStar(score) }
                 )
                 UIAdBanner("ANUNCIO")
             }
@@ -267,16 +310,18 @@ fun UIMosaicBackground(
     val color1 = Theme.colors.primary.withAlpha(0.03f)
     val color2 = Theme.colors.primary.withAlpha(0.07f)
 
-    Canvas(
-        modifier = Modifier.fillMaxSize()
-    ){
-        println("Dibujando mosaico")
-        val radius = maxWidth / 20
-        val numSides = 7
-        val angleStep = 2 * PI / numSides
-        val angleEvenX = radius * 2 * cos(PI / 7).toFloat()
-        val angleEvenY = radius * 2 * sin(PI / 14).toFloat()
+    val radius = maxWidth / 20
+    val numSides = 7
+    val angleStep = 2 * PI / numSides
+    val angleEvenX = radius * 2 * cos(PI / 7).toFloat()
+    val angleEvenY = radius * 2 * sin(PI / 14).toFloat()
 
+    println("Calculando dibujo de mosaico")
+
+    Canvas(
+        modifier = Modifier
+            .fillMaxSize()
+    ){
         var centerY = 0f
         var evenY = false
         while (centerY - radius < maxHeight) {

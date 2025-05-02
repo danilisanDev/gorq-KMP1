@@ -93,8 +93,9 @@ class GameStateViewModel(
             when(step){
                 //StartLine
                 0 -> {
-                    setIsLoadingState(true)
-                    actionManager.startLine(position)
+                    if(actionManager.startLine(position)){
+                        setIsLoadingState(true)
+                    }
                 }
                 //OnDragLine
                 1 -> {
@@ -104,8 +105,9 @@ class GameStateViewModel(
                 }
                 //EndLine
                 else -> {
-                    actionManager.endLine()
-                    setIsLoadingState(false)
+                    if(actionManager.endLine()){
+                        setIsLoadingState(false)
+                    }
                 }
             }
         }

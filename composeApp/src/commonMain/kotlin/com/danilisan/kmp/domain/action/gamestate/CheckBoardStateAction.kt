@@ -31,7 +31,11 @@ class CheckBoardStateAction(
         updateState: suspend (GameStateUiState) -> Unit,
         gameMode: GameMode,
         params: Any?,
-    ) = withContext(dispatcher.default) {
+    ):Boolean = withContext(dispatcher.default) {
+        //Does not expect any params
+        if (params != null) {
+            return@withContext false
+        }
         //Current board
         val board = getState().board
 
@@ -92,10 +96,12 @@ class CheckBoardStateAction(
                 updateStateFields(getState, updateState,
                     availableLines = availableLines,
                     boardState = currentBoardState,
+//                    boardState = BoardState.BINGO,
                     displayMessage = newMessage,
                     targetPositionFromQueue = BoardPosition(),
                 )
             }
+            return@withContext true
         } catch (e: Exception) {
             Napier.d(message = "BoardState exception: ${e.message}")
             /**
@@ -112,6 +118,7 @@ class CheckBoardStateAction(
                 ),
                 targetPositionFromQueue = BoardPosition(),
             )
+            return@withContext true
         }
     }
 }
