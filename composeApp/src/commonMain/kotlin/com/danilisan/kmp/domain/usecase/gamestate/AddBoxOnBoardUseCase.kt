@@ -14,8 +14,8 @@ class AddBoxOnBoardUseCase(
         targetPosition: BoardPosition,
         newBox: NumberBox,
     ): Map<BoardPosition, NumberBox> = withContext(dispatcher.default) {
-        board.toMutableMap().apply {
-            this[targetPosition] = newBox
-        }
+        val resultBoard = board.toMutableMap()
+        resultBoard[targetPosition] = newBox
+        return@withContext resultBoard
     }
 }

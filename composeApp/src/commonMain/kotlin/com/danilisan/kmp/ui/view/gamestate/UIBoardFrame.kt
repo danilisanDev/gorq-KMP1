@@ -10,6 +10,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.State
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -50,10 +51,12 @@ fun UIBoardFrame(
     getCompletedLines: () -> List<Int>,
     getAvailableLines: () -> Set<Int>,
     getPositionsNotInLine: (Int, Int) -> List<BoardPosition>,
+    showMenuBar: MutableState<Boolean>
 ) = getBoardState().let { boardState ->
     if (boardState == BoardState.READY || boardState == BoardState.BINGO) {
         LineIndicators(
             isBingoState = boardState == BoardState.BINGO,
+            applyOffLights = { showMenuBar.value },
             getLineLength = getLineLength,
             getCompletedLines = getCompletedLines,
             getAvailableLines = getAvailableLines,
@@ -185,6 +188,7 @@ private fun getIndicatorState(
 @Composable
 fun LineIndicators(
     isBingoState: Boolean,
+    applyOffLights: () -> Boolean,
     getLineLength: () -> Int,
     getCompletedLines: () -> List<Int>,
     getAvailableLines: () -> Set<Int>,
@@ -229,13 +233,17 @@ fun LineIndicators(
         drawIndicators(
             lineLength = lineLength,
             indicatorLightProvider = { lineId ->
-                val animationKey = lineIdToAnimationKey(
-                    lineId, isBingoState, getLineLength
-                )
-                (indicatorMap[animationKey]?: IndicatorState.OFF)
-                    .buildIndicatorLight(
-                        colorList, animatedValues
+                val indicatorState = if(applyOffLights()){
+                    IndicatorState.OFF
+                }else{
+                    val animationKey = lineIdToAnimationKey(
+                        lineId, isBingoState, getLineLength
                     )
+                    (indicatorMap[animationKey]?: IndicatorState.OFF)
+                }
+                indicatorState.buildIndicatorLight(
+                    colorList, animatedValues
+                )
             }
         )
     }

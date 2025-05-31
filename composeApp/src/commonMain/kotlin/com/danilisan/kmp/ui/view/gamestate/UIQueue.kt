@@ -1,20 +1,17 @@
 package com.danilisan.kmp.ui.view.gamestate
 
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.EaseInOutCubic
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.VectorConverter
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
@@ -30,6 +27,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -38,16 +36,13 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import com.danilisan.kmp.domain.action.gamestate.GameStateActionManager.Companion.BASE_ACTION_DELAY
 import com.danilisan.kmp.domain.entity.BoardPosition
 import com.danilisan.kmp.domain.entity.NumberBox
 import com.danilisan.kmp.ui.theme.Theme
 import com.danilisan.kmp.ui.view.OffsetDp
-import com.danilisan.kmp.ui.view.createRelativeShader
 import com.danilisan.kmp.ui.view.combineOver
 import com.danilisan.kmp.ui.view.withAlpha
 import com.danilisan.kmp.ui.view.toIntOffset
-import com.danilisan.kmp.ui.view.toPx
 import kotlinproject.composeapp.generated.resources.Res
 import kotlinproject.composeapp.generated.resources.down_arrow
 import kotlinx.coroutines.CoroutineScope
@@ -71,6 +66,8 @@ fun BoxScope.UIQueue(
     getTravellingBox: () -> NumberBox,
     getTargetPosition: () -> BoardPosition,
     getLineLength: () -> Int,
+    applyStarAnimation: () -> Brush?,
+    reloadingCircle: @Composable () -> Unit,
 ) {
     val coroutineScope = rememberCoroutineScope()
     val queueSize by remember {
@@ -80,12 +77,7 @@ fun BoxScope.UIQueue(
         queueSize = queueSize,
         getSelectedSize = getSelectedSize,
     )
-    UIQueueArrow(
-        modifier = Modifier
-            .fillMaxWidth(0.8f)
-            .aspectRatio(3f)
-            .align(Alignment.BottomCenter)
-    )
+    UIQueueArrow()
     if(queueSize > 0){
         UIQueueContent(
             queueSize = queueSize,
@@ -93,9 +85,11 @@ fun BoxScope.UIQueue(
             getTravellingBox = getTravellingBox,
             getTargetPosition = getTargetPosition,
             getLineLength = getLineLength,
+            applyStarAnimation = applyStarAnimation,
             scopeProvider = { coroutineScope }
         )
     }
+    reloadingCircle()
 }
 
 @Composable
@@ -103,7 +97,6 @@ private fun UIQueueContainer(
     queueSize: Int,
     getSelectedSize: () -> Int,
 ) {
-    //println("Recomposicion de container")
     val shape = Theme.shapes.softBlockShape
     val animatedValue = QueueContainerAnimatedValue(
         queueSize = queueSize,
@@ -113,12 +106,7 @@ private fun UIQueueContainer(
     val colorList = listOf(
         Theme.colors.primary,
         Theme.colors.grey,
-        createRelativeShader(
-            bgColor = Theme.colors.selected,
-            shaderColor = Theme.colors.secondary,
-            index = getSelectedSize(),
-            maxIndex = queueSize,
-        ),
+        Theme.colors.selected,
     )
 
     //Queue container
@@ -165,10 +153,14 @@ private fun QueueContainerAnimatedValue(
         }else{
             -0.2f
         },
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessLow
-        ),
+        animationSpec = if(selectedSize == -1) {
+            tween(0)
+        }else{
+            spring(
+                dampingRatio = Spring.DampingRatioMediumBouncy,
+                stiffness = Spring.StiffnessLow
+            )
+        },
         label = "animatedQueueContainer"
     )
 }
@@ -180,6 +172,7 @@ private fun UIQueueContent(
     getTravellingBox: () -> NumberBox,
     getTargetPosition: () -> BoardPosition,
     getLineLength: () -> Int,
+    applyStarAnimation: () -> Brush?,
     scopeProvider: () -> CoroutineScope
 ) {
     BoxWithConstraints(
@@ -195,6 +188,7 @@ private fun UIQueueContent(
             getQueueBoxes = getQueueBoxes,
             propertiesList = propertiesList,
             containerWidth = maxWidth,
+            applyStarAnimation = applyStarAnimation,
         )
         UITravellingBox(
             getTravellingBox = getTravellingBox,
@@ -208,28 +202,23 @@ private fun UIQueueContent(
                 )
             },
             containerWidth = maxWidth,
+            applyStarAnimation = applyStarAnimation,
             scopeProvider = scopeProvider,
         )
     }
 }
 
-//TODO: Eliminar Box intermedia
 @Composable
-private fun UIQueueArrow(modifier: Modifier) {
-    Box(
-        modifier = modifier,
-        contentAlignment = Alignment.CenterStart
-    ) {
-        Image(
-            imageVector = vectorResource(Res.drawable.down_arrow),
-            contentDescription = "arrow",
-            modifier = Modifier
-                .fillMaxHeight()
-                .aspectRatio(1f)
-                .padding(2.dp)
-        )
-    }
-}
+private fun BoxScope.UIQueueArrow() =
+    Image(
+        imageVector = vectorResource(Res.drawable.down_arrow),
+        contentDescription = "arrow",
+        modifier = Modifier
+            .fillMaxWidth(0.5f)
+            .aspectRatio(1f)
+            .align(Alignment.BottomStart)
+            .scale(0.7f)
+    )
 
 @Composable
 private fun UIQueueBoxes(
@@ -237,6 +226,7 @@ private fun UIQueueBoxes(
     getQueueBoxes: () -> List<NumberBox>,
     propertiesList: List<QueueBoxProperties>,
     containerWidth: Dp,
+    applyStarAnimation: () -> Brush?,
 ) {
     val queueIndices by remember {
         derivedStateOf{
@@ -274,14 +264,15 @@ private fun UIQueueBoxes(
                     UINumberBox(
                         getNumberBox = { getQueueBoxes()[index] },
                         boxSize = maxWidth,
-                        applyShaderColor = {
+                        applyShader = {
                             val color = createShaderColor(
                                 shaderColor,
                                 propertiesList.first().getSize(),
                                 (animationValues[QUEUEBOX_ANIMATED_SIZE]?.value as Float?)
                             )
-                            Pair(color, false)
+                            BoxShader(color = color)
                         },
+                        applyStarAnimation = applyStarAnimation,
                     )
                 }
             }
@@ -336,16 +327,14 @@ private fun QueueBoxesAnimatedValues(
     )
 
     //Animation of values
-    val duration = remember{ BASE_ACTION_DELAY.toInt() }
-    val delay = remember { duration / 5 }
+    val factor = (index + 1).toFloat() / propertiesList.size
     LaunchedEffect(box) {
         offsetAnimation.snapTo(initialOffset)
         offsetAnimation.animateTo(
             targetValue = targetOffset,
-            animationSpec = tween(
-                durationMillis = duration - (delay * index),
-                delayMillis = delay * index,
-                easing = EaseInOutCubic
+            animationSpec = spring(
+                dampingRatio = 0.5f + (factor * 0.1f),
+                stiffness = 1000f * (1f - factor)
             )
         )
     }
@@ -353,11 +342,6 @@ private fun QueueBoxesAnimatedValues(
         sizeAnimation.animateTo(sizeValues.first)
         sizeAnimation.animateTo(
             targetValue = sizeValues.second,
-            animationSpec = tween(
-                durationMillis = duration - (delay * index),
-                delayMillis = delay * index,
-                easing = EaseInOutCubic
-            )
         )
     }
     return mapOf(

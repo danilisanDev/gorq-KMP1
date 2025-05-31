@@ -18,8 +18,9 @@ data class GameStateUiState (
     //Box selection
     val selectedPositions: List<BoardPosition> = emptyList(),
     val incompleteSelection: Boolean = false,
-    val travellingBox: NumberBox = NumberBox.EmptyBox(),
-    val targetPositionFromQueue: BoardPosition = BoardPosition(),
+    val updatingPositions: List<BoardPosition> = emptyList(),
+    val travellingBox: NumberBox = NumberBox.EmptyBox(), //TODO Eliminar??
+    val targetPositionFromQueue: BoardPosition = BoardPosition(), //TODO Eliminar??
     //Line drag
     val linedPositions: List<BoardPosition?> = emptyList(),
     val completedLines: List<Int> = emptyList(),

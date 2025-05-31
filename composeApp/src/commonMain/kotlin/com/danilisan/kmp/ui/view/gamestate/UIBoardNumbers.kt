@@ -5,6 +5,7 @@ import androidx.compose.animation.core.AnimationSpec
 import androidx.compose.animation.core.EaseInOutCubic
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
@@ -17,15 +18,19 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import com.danilisan.kmp.domain.action.gamestate.GameStateActionManager.Companion.TRAVEL_ACTION_DELAY
 import com.danilisan.kmp.domain.action.gamestate.GameStateActionManager.Companion.UPDATE_BOARD_TOTAL_DELAY
@@ -33,6 +38,8 @@ import com.danilisan.kmp.domain.entity.BoardPosition
 import com.danilisan.kmp.domain.entity.NumberBox
 import com.danilisan.kmp.ui.state.BoardState
 import com.danilisan.kmp.ui.theme.Theme
+import com.danilisan.kmp.ui.view.CONTRAST
+import com.danilisan.kmp.ui.view.combineOver
 import com.danilisan.kmp.ui.view.createRelativeShader
 import com.danilisan.kmp.ui.view.plus
 import com.danilisan.kmp.ui.view.toArrayWithAbsoluteColorStops
@@ -52,6 +59,7 @@ const val STAR = 2
 
 @Composable
 fun UIBoardNumbers(
+    showMenuBar: MutableState<Boolean>,
     getLineLength: () -> Int,
     getBoard: () -> Map<BoardPosition, NumberBox>,
     getTargetPositionFromQueue: () -> BoardPosition? = { null },
@@ -59,6 +67,7 @@ fun UIBoardNumbers(
     getLinedPositions: () -> List<BoardPosition> = { emptyList() },
     getCompletedLinesSize: () -> Int = { 0 },
     getBoardState: () -> BoardState = { BoardState.BLOCKED },
+    applyStarAnimation: () -> Brush?,
     isSelectionEnabled: () -> Boolean = { false },
     selectAction: (BoardPosition) -> Unit = {}
 ) {
@@ -94,9 +103,11 @@ fun UIBoardNumbers(
                             applyDarkBackground = { position.getRightDiagonalParity() },
                             getNumberBox = { getBoard()[position] ?: NumberBox.EmptyBox() },
                             comesFromQueue = { position == getTargetPositionFromQueue() },
-                            applyShaderColor = {
-                                getShaderColor(
+                            isSelected = { (position in getSelectedPositions()).takeUnless{ position in getLinedPositions() } },
+                            applyShader = { shaderSize ->
+                                getShader(
                                     colorList = colorList,
+                                    shaderSize = shaderSize,
                                     getBoardState = getBoardState,
                                     boardPosition = position,
                                     getSelectedPositions = getSelectedPositions,
@@ -106,19 +117,21 @@ fun UIBoardNumbers(
                                 )
                             },
                             applyBorderBrush = { boxType ->
-                                getBorderStyle(
-                                    colorList = colorList,
-                                    gradientList = gradientList,
-                                    boardPosition = position,
-                                    boxType = boxType,
-                                    getBoardState = getBoardState,
-                                    getSelectedPositions = getSelectedPositions,
-                                    getLinedPositions = getLinedPositions,
-                                )
+                                if(!showMenuBar.value) {
+                                    getBorderStyle(
+                                        colorList = colorList,
+                                        gradientList = gradientList,
+                                        boardPosition = position,
+                                        boxType = boxType,
+                                        getBoardState = getBoardState,
+                                        getSelectedPositions = getSelectedPositions,
+                                        getLinedPositions = getLinedPositions,
+                                    )
+                                }else{ null }
                             },
+                            applyStarAnimation = applyStarAnimation,
                             isSelectionEnabled = isSelectionEnabled,
                             selectAction = { selectAction(position) },
-                            position = position
                         )
                     }
                 }
@@ -138,12 +151,13 @@ private fun RowScope.BoxTile(
     weight: Float,
     applyDarkBackground: () -> Boolean,
     getNumberBox: () -> NumberBox,
+    isSelected: () -> Boolean?,
     comesFromQueue: () -> Boolean,
-    applyShaderColor: () -> Pair<Color,Boolean>?,
+    applyShader: (Float) -> BoxShader?,
     applyBorderBrush: (BoxType) -> Brush?,
+    applyStarAnimation: () -> Brush?,
     isSelectionEnabled: () -> Boolean,
     selectAction: () -> Unit,
-    position: BoardPosition?
 ){
     //Number box values
     val newNumberBox by remember{
@@ -153,11 +167,6 @@ private fun RowScope.BoxTile(
     }
     var currentNumberBox by remember{ mutableStateOf(newNumberBox)}
 
-    LaunchedEffect(newNumberBox){
-        delay(UPDATE_BOARD_TOTAL_DELAY / 2)
-        currentNumberBox = newNumberBox
-    }
-
     //Animation key
     var isLandingPosition by remember{
         mutableStateOf (false)
@@ -165,6 +174,18 @@ private fun RowScope.BoxTile(
     LaunchedEffect(newNumberBox){
         isLandingPosition = comesFromQueue()
     }
+
+    LaunchedEffect(newNumberBox){
+        if(isLandingPosition){
+            (TRAVEL_ACTION_DELAY * 0.85f).toLong()
+        }else{
+            UPDATE_BOARD_TOTAL_DELAY / 2
+        }.run{
+            delay(this)
+        }
+        currentNumberBox = newNumberBox
+    }
+
 
     //Animation values
     var animatedValues: Map<Int, Animatable<*, *>> by remember{
@@ -181,18 +202,48 @@ private fun RowScope.BoxTile(
             newNumberBox,
         )
     }
+
+    //Selection click animations
+    val tileSelected by remember{
+        derivedStateOf{
+            isSelected() == true
+        }
+    }
+    val animatedShader by animateFloatAsState(
+        targetValue = if(tileSelected) 1f else 0f,
+        animationSpec = if(tileSelected) spring() else spring(stiffness = Spring.StiffnessHigh)
+    )
+
+    var fullSizeClick by remember{mutableStateOf(true)}
+
+    val animatedClickSize by animateFloatAsState(
+        targetValue = if(fullSizeClick) 1f else 0.8f,
+        animationSpec = if(tileSelected){
+            spring(
+                dampingRatio = Spring.DampingRatioMediumBouncy,
+                stiffness = Spring.StiffnessHigh)
+        } else {
+            tween(100)
+        }
+    )
+
+    LaunchedEffect(tileSelected){
+        fullSizeClick = false
+        delay(100)
+        fullSizeClick = true
+    }
+
+    //Flip properties
+    val backSideColor = Theme.colors.secondary.combineOver(
+        other = Theme.colors.primary,
+        alpha = CONTRAST * if(applyDarkBackground()) 1f else 2f
+    )
+    val borderBackColor = Theme.colors.primary
+
     BoxWithConstraints(
         modifier = Modifier
             .weight(weight)
             .aspectRatio(1f)
-            .clickable(
-                indication = null,
-                interactionSource = remember{ MutableInteractionSource() }
-            ){
-                if(isSelectionEnabled()){
-                    selectAction()
-                }
-            }
             .graphicsLayer{
                 (animatedValues[BOXTILE_ANIMATED_SIZE]?.value as Float?)
                     ?.let { animatedSize ->
@@ -217,19 +268,64 @@ private fun RowScope.BoxTile(
                         translationY = animatedOffset
                     }
             }
+            .graphicsLayer{
+                scaleX = animatedClickSize
+                scaleY = animatedClickSize
+            }
+            .drawWithContent{
+                val faceUp = (animatedValues[BOXTILE_ANIMATED_ROTATION]?.value as Float?)?.let{
+                    it < 90f || it > 270f
+                }?: true
+                if(faceUp){
+                    drawContent()
+                }else{
+                    drawBackBox(
+                        backgroundColor = backSideColor,
+                        borderColor = borderBackColor,
+                    )
+                }
+            }
+            .clickable(
+                indication = null,
+                interactionSource = remember{ MutableInteractionSource() }
+            ){
+                if(isSelectionEnabled() && currentNumberBox is NumberBox.RegularBox){
+                    selectAction()
+                }
+            }
     ) {
         UINumberBox(
-            faceUp =
-                (animatedValues[BOXTILE_ANIMATED_ROTATION]?.value as Float?)?.let{
-                    it < 90f || it > 270f
-                }?: true,
             getNumberBox = { currentNumberBox },
             boxSize = maxWidth,
-            applyShaderColor = applyShaderColor,
+            applyShader = {
+                applyShader(
+                    if(isSelected() == null) 1f else animatedShader
+                )
+            },
             applyBorderStyle = applyBorderBrush,
-            applyDarkBackground = applyDarkBackground,
+            applyStarAnimation = applyStarAnimation,
         )
     }
+}
+
+private fun DrawScope.drawBackBox(
+    backgroundColor: Color,
+    borderColor: Color,
+){
+    (this.size.width / 10f).let{
+        CornerRadius(x = it, y = it)
+    }
+        .let{ radius ->
+            drawRoundRect(
+                color = backgroundColor,
+                cornerRadius = radius
+            )
+            drawRoundRect(
+                color = borderColor,
+                style = Stroke(size.width / 49f),
+                cornerRadius = radius
+            )
+        }
 }
 
 private fun calculateAnimatedScale(
@@ -318,7 +414,7 @@ private fun replacingAnimationValues(
 
     val animationSpec: AnimationSpec<Float> = remember {
         tween(
-            durationMillis = (TRAVEL_ACTION_DELAY * 0.9f).toInt(),
+            durationMillis = (TRAVEL_ACTION_DELAY * 0.85f).toInt(),
             easing = EaseInOutCubic
         )
     }
@@ -338,13 +434,12 @@ private fun replacingAnimationValues(
             animationSpec = animationSpec
         )
         sizeAnimation.snapTo(
-            targetValue = 0.7f,
+            targetValue = 0.5f,
         )
         sizeAnimation.animateTo(
             targetValue = 1f,
             animationSpec = spring(
                 dampingRatio = Spring.DampingRatioMediumBouncy,
-                stiffness = Spring.StiffnessMedium,
             )
         )
     }
@@ -354,36 +449,26 @@ private fun replacingAnimationValues(
     )
 }
 
-
-private fun getShaderColor(
+private fun getShader(
     colorList: List<Color>,
+    shaderSize: Float,
     getBoardState: () -> BoardState,
     boardPosition: BoardPosition,
     getSelectedPositions: () -> List<BoardPosition>,
     getLinedPositions: () -> List<BoardPosition>,
     getCompletedLinesSize: () -> Int,
     incompleteLineLength: Int,
-): Pair<Color, Boolean>? {
+): BoxShader {
     val selectedPositions = getSelectedPositions()
     val linedPositions = getLinedPositions()
 
     return when{
         //Bingo
         (getBoardState() == BoardState.BINGO) -> {
-            val color = colorList[LINED].withAlpha(0.8f)
-            Pair(color, true)
-        }
-        //Selected
-        (boardPosition in selectedPositions) -> {
-            val color = createRelativeShader(
-                bgColor = colorList[SELECTED],
-                shaderColor = colorList[BLACK],
-                index = selectedPositions.run{
-                    size - indexOf(boardPosition) - 1
-                },
-                maxIndex = selectedPositions.size
+            BoxShader(
+                color = colorList[LINED].withAlpha(0.8f),
+                whiteText = true,
             )
-            Pair(color, true)
         }
 
         //Lined position (last line -> previous line -> future line)
@@ -408,9 +493,28 @@ private fun getShaderColor(
                         )
                     }?: colorList[BLACK].withAlpha(0.1f)
             }
-            Pair(color, whiteText)
+            BoxShader(
+                color = color,
+                whiteText = whiteText,
+            )
         }
-        else -> null
+        //Selected
+        else -> {
+            val color = createRelativeShader(
+                bgColor = colorList[SELECTED],
+                shaderColor = colorList[BLACK],
+                index = selectedPositions.run{
+                    size - indexOf(boardPosition) - 1
+                },
+                maxIndex = selectedPositions.size
+            )
+            val isSelected = (boardPosition in selectedPositions)
+            BoxShader(
+                color = color,
+                whiteText = isSelected,
+                size = shaderSize,
+            )
+        }
     }
 }
 private fun getBorderStyle(

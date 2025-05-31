@@ -1,5 +1,8 @@
 package com.danilisan.kmp.ui.view.gamestate
 
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -12,12 +15,18 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
@@ -33,6 +42,7 @@ import com.danilisan.kmp.ui.view.toSp
 import com.danilisan.kmp.ui.view.withAlpha
 import kotlinproject.composeapp.generated.resources.Res
 import kotlinproject.composeapp.generated.resources.refresh
+import kotlinx.coroutines.delay
 import org.jetbrains.compose.resources.PluralStringResource
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.pluralStringResource
@@ -52,8 +62,35 @@ fun UIMessageDisplay(
             1f to Theme.colors.transparent,
         )
     )
-
     val highlightColor = message.getHighlightColor().withAlpha(0.8f)
+    var sizeDiff by remember{ mutableStateOf(0) }
+
+    val animatedSize by animateFloatAsState(
+        targetValue = sizeDiff.toFloat(),
+        animationSpec = spring(
+            dampingRatio = 0.5f - 0.1f * sizeDiff,
+            stiffness = 1500f - 200f * sizeDiff
+        )
+    )
+
+    LaunchedEffect(message.sizeDiff){
+        sizeDiff = message.sizeDiff
+    }
+
+    var isShaking by remember { mutableStateOf(false) }
+    val animatedShake by animateFloatAsState(
+        targetValue = if(isShaking) 1f else 0f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioHighBouncy,
+        )
+    )
+    LaunchedEffect(message.highlightColor){
+        if(message.highlightColor == DISPLAY_TEXT_ERROR){
+            isShaking = true
+            delay(170)
+            isShaking = false
+        }
+    }
 
     BoxWithConstraints(
         modifier = Modifier
@@ -80,7 +117,7 @@ fun UIMessageDisplay(
         }
 
         val boxSize = maxHeight
-        val fontSize = (boxSize / (2.1f - message.sizeDiff * 0.2f)).toSp()
+        val fontSize = (boxSize / 2.1f).toSp()
 
         Row(
             verticalAlignment = Alignment.CenterVertically
@@ -90,7 +127,19 @@ fun UIMessageDisplay(
                 maxLines = 1,
                 letterSpacing = 3.sp,
                 modifier = Modifier
-                    .basicMarquee(),
+                    .run{
+                        if(message.icon != null){
+                            this
+                        }else{
+                            this.fillMaxWidth(0.9f)
+                        }
+                    }
+                    .basicMarquee()
+                    .graphicsLayer{
+                        scaleX = 1 + animatedSize * 0.1f
+                        scaleY = 1 + animatedSize * 0.1f
+                        translationX = animatedShake * 10f - (if(isShaking) 10f else 0f)
+                    },
                 style = TextStyle(
                     fontSize = fontSize,
                     fontWeight = message.weight,

@@ -1,10 +1,12 @@
 package com.danilisan.kmp.domain.action.gamestate
 
+import com.danilisan.kmp.domain.entity.BoardHelper.GAME_MODES
 import com.danilisan.kmp.domain.entity.BoardPosition
 import com.danilisan.kmp.domain.entity.GameMode
 import com.danilisan.kmp.domain.usecase.gamestate.GetSavedGameStateUseCase
 import com.danilisan.kmp.ui.state.GameModeState
 import com.danilisan.kmp.ui.state.GameStateUiState
+import io.github.aakira.napier.Napier
 
 /**
  * RESPONSIBILITIES
@@ -48,11 +50,31 @@ class GameStateActionManager(
     }
 
     //Action invoking
+    suspend fun generateNewGame(
+        gameModeId: Int = 0,
+        updateViewModelGameMode: suspend (GameModeState) -> Unit = {},
+    ){
+        //Update game mode
+        try{
+            updateGameMode(
+                newGameMode = GAME_MODES[gameModeId],
+                updateViewModelGameMode = updateViewModelGameMode
+            )
+        }catch(_: IndexOutOfBoundsException){
+            Napier.e(message = "ERROR: Unknown game mode selected.")
+        }
+
+        //Update game state
+        updateGameAction(
+            getStateMethod, updateStateMethod, gameMode,
+            params = UpdateGameAction.UpdateOptions.NEW_GAME
+        )
+    }
+
     suspend fun initialLoad(
         updateViewModelGameMode: suspend (GameModeState) -> Unit
-    ) = updateGameAction(
-        getStateMethod, updateStateMethod, gameMode,
-        params = UpdateGameAction.UpdateOptions.NEW_GAME
+    ) = generateNewGame(
+        updateViewModelGameMode = updateViewModelGameMode
     )
 
     /* ACCESO A PERSISTENCIA
@@ -100,6 +122,6 @@ class GameStateActionManager(
         const val BASE_ACTION_DELAY = 300L
         const val TRAVEL_ACTION_DELAY = BASE_ACTION_DELAY * 2
         const val UPDATE_BOARD_TOTAL_DELAY = BASE_ACTION_DELAY * 2
-        const val INCOMPLETE_SELECTION_DELAY = BASE_ACTION_DELAY * 3
+        const val SELECTION_DELAY = BASE_ACTION_DELAY * 3
     }
 }

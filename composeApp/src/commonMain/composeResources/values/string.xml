@@ -1,21 +1,23 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <resources>
     <!-- GameModes -->
-    <string name="easyAddMode">Classic</string>
-    <string name="multiplyMode">Multipliers</string>
+    <string name="easyAddMode">Classic mode</string>
+    <string name="multiplyMode">Hard multiply</string>
     <string name="jumboAddMode">Jumbo Classic</string>
     <string name="timeTrialMode">Time Attack</string>
     <string name="blindMode">Blind Blocks</string>
-    <string name="voidMode">Void Rogue</string>
-    <string name="zenMode">Zen Mode</string>
+    <string name="voidMode">Absolute Zero</string>
+    <string name="zenMode">Zen mode</string>
 
     <!-- Tags -->
-    <string name="reloadBtn">Reload \n%1$s (x%2$d)</string>
-    <string name="nextTag">NEXT</string>
-    <string name="boardTag">board</string>
-    <string name="queueTag">queue</string>
     <string name="bingoTag">Bingo</string>
     <string name="colon">:</string>
+
+    <!-- Menu bar-->
+    <string name="btnNewGame">New game</string>
+    <string name="btnContinue">Continue</string>
+    <string name="btnRanking">Top scores</string>
+    <string name="recordTag">Highest score: </string>
 
     <!-- Score Display-->
     <string name="trillion">T</string>
@@ -25,7 +27,7 @@
     <string name="turns">Turns</string>
 
     <!-- Reload Button text -->
-    <string name="gameOverButton">Try again</string>
+    <string name="gameOverButton">NEW GAME</string>
     <string name="bingoButton">Click me!</string>
     <string name="reloadMultiplierButton">x</string>
 

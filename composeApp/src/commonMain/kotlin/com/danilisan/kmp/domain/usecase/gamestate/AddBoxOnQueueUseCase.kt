@@ -15,21 +15,21 @@ class AddBoxOnQueueUseCase(
         replaceLast: Boolean = false,
     ): List<NumberBox> = withContext(dispatcher.default) {
         if (queueSize <= 0) {//Impossible case but in order to avoid IndexOutOfBoundsException
-            emptyList()
+            return@withContext emptyList()
         } else {
-            currentQueue
-                .toMutableList()
-                .apply {
-                    if(replaceLast && isNotEmpty()){
-                        this[lastIndex] = newBox
-                    }else{
-                        if (size >= queueSize) {
-                            removeAt(index = 0)
-                            retainAll(take(queueSize - 1))
-                        }
-                        add(newBox)
+            val resultQueue = currentQueue.toMutableList()
+            resultQueue.run {
+                if (replaceLast && isNotEmpty()) {
+                    this[lastIndex] = newBox
+                } else {
+                    if (size >= queueSize) {
+                        removeAt(index = 0)
+                        retainAll(take(queueSize - 1))
                     }
+                    add(newBox)
                 }
+            }
+            return@withContext resultQueue
         }
     }
 }

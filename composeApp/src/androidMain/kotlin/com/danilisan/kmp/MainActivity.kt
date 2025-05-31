@@ -3,10 +3,7 @@ package com.danilisan.kmp
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -18,36 +15,30 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CutCornerShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.drawscope.scale
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.danilisan.kmp.domain.entity.NumberBox
 import com.danilisan.kmp.domain.entity.Score
 import com.danilisan.kmp.ui.theme.Theme
 import com.danilisan.kmp.ui.view.createRelativeShader
 import com.danilisan.kmp.ui.view.combineOver
+import com.danilisan.kmp.ui.view.gamestate.BoxShader
 import com.danilisan.kmp.ui.view.plus
 import com.danilisan.kmp.ui.view.withAlpha
 import com.danilisan.kmp.ui.view.gamestate.UINumberBox
 import com.danilisan.kmp.ui.view.gamestate.UIScoreDisplay
-import com.danilisan.kmp.ui.view.toArrayWithAbsoluteColorStops
-import com.danilisan.kmp.ui.view.toPx
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
@@ -62,51 +53,29 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-@Composable
-fun ScorePreview(){
-    val score = Score(9_999_999_999_999L, 101, 12)
-    UIScoreDisplay(
-        {score},
-        {false}
-    )
-}
 
 @Preview
 @Composable
 fun Caja(){
-    val shadowColor = Theme.colors.secondary
-    Column(
-        Modifier.fillMaxSize(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        BoxWithConstraints(Modifier
-            .size(200.dp)
-            .border(
-                width = 3.dp,
-                color = Color.Black
-            )
-            .background(Color.Green)
-            .padding(20.dp)
-            .graphicsLayer {
-                translationY = -100f
-            }
-        ) {
-            UINumberBox(
-                getNumberBox = { NumberBox.RegularBox(5) },
-                boxSize = maxWidth
-            )
-        }
+    Box(
+        modifier = Modifier
+            .fillMaxSize(),
+        contentAlignment = Alignment.BottomCenter
+    ){
+        UIScoreDisplay(
+            getScore = { Score(1000, 2, 5) }
+        )
     }
 }
 
-
 @Composable
 fun Semaforo(){
-    Column(Modifier
-        .height(600.dp)
-        .width(200.dp)
-        .padding(10.dp)
-        .background(Color.LightGray)
+    Column(
+        Modifier
+            .height(600.dp)
+            .width(200.dp)
+            .padding(10.dp)
+            .background(Color.LightGray)
     ){
         BlinkingLight(color = Theme.colors.primary + Theme.colors.grey.withAlpha(0f), on = 1f) //Encendida
         BlinkingLight(color = Theme.colors.primary + Theme.colors.grey.withAlpha(1f), on = 1f) //A medias
@@ -122,10 +91,11 @@ fun Semaforo(){
 
 @Composable
 fun BoxesPreview(){
-    Column(Modifier
-        .fillMaxHeight()
-        .background(Color.Red)
-        .aspectRatio(1f / 5)
+    Column(
+        Modifier
+            .fillMaxHeight()
+            .background(Color.Red)
+            .aspectRatio(1f / 5)
     ){
         NumberBoxPreview(0)
         NumberBoxPreview(1)
@@ -169,15 +139,15 @@ fun NumberBoxPreview(
     )
 
     BoxWithConstraints (modifier =
-        Modifier
-            .fillMaxWidth(0.9f)
-            .aspectRatio(1f)
+    Modifier
+        .fillMaxWidth(0.9f)
+        .aspectRatio(1f)
     ){
         UINumberBox(
             getNumberBox = { NumberBox.RegularBox(5) },
             boxSize = maxWidth,
             applyBorderStyle = { linedBrush },
-            applyShaderColor = { Pair(linedShader, true) },
+            applyShader = { BoxShader(linedShader, true) },
         )
     }
 }

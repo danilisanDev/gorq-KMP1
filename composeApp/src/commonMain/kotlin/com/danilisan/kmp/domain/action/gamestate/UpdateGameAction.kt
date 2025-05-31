@@ -2,6 +2,7 @@ package com.danilisan.kmp.domain.action.gamestate
 
 import androidx.compose.ui.text.font.FontWeight
 import com.danilisan.kmp.core.provider.DispatcherProvider
+import com.danilisan.kmp.domain.action.gamestate.GameStateActionManager.Companion.BASE_ACTION_DELAY
 import com.danilisan.kmp.domain.action.gamestate.GameStateActionManager.Companion.UPDATE_BOARD_TOTAL_DELAY
 import com.danilisan.kmp.domain.action.gamestate.GameStateActionManager.Companion.TRAVEL_ACTION_DELAY
 import com.danilisan.kmp.domain.entity.BoardHelper.getEmptyPositionsSortedDiagonally
@@ -194,10 +195,9 @@ class UpdateGameAction(
             reloadsLeft = getState().reloadsLeft + (reloadsIncrement?: 0),
         )
 
+        //TODO Reducir las llamadas a updateStateFields (maximo 2)
         //Update UI
         if(option.scoreIsUpdating){
-            //TODO Revisar AFTER_BINGO (en Desktop a veces no suma la puntuacion)
-            //TODO Revisar AFTER_SELECTION (en Desktop a veces no suma la puntuacion en HardMultiply)
             launch{
                 val sizeDiff = scoreIncrement?.lines?.let{ lines ->
                     if(lines > 0 ) lines - 1 else lines
@@ -362,5 +362,6 @@ class UpdateGameAction(
             getState, updateState,
             travellingBox = NumberBox.EmptyBox(),
         )
+        delay(BASE_ACTION_DELAY)
     }
 }

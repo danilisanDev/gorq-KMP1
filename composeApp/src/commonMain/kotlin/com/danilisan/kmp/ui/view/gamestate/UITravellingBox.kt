@@ -16,9 +16,9 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
@@ -43,6 +43,7 @@ fun UITravellingBox(
     boxRelativeSize: Float,
     offset: OffsetDp,
     containerWidth: Dp,
+    applyStarAnimation: () -> Brush?,
     scopeProvider: () -> CoroutineScope,
 ) {
     val travellingBox = getTravellingBox()
@@ -100,7 +101,8 @@ fun UITravellingBox(
                 )
                 UINumberBox(
                     getNumberBox = getTravellingBox,
-                    boxSize = maxWidth
+                    boxSize = maxWidth,
+                    applyStarAnimation = applyStarAnimation,
                 )
             }
         }
@@ -188,7 +190,7 @@ private fun TravellingBoxAnimatedValues(
         typeConverter = Offset.VectorConverter,
     )
 
-    val totalDuration = rememberSaveable { TRAVEL_ACTION_DELAY.toInt() }
+    val totalDuration = remember {TRAVEL_ACTION_DELAY.toInt()}
 
     val fullAnimationSpec: AnimationSpec<Offset> = remember {
         tween(

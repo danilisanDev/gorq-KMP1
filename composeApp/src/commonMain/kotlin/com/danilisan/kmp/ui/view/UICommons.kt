@@ -14,6 +14,8 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import kotlin.math.roundToInt
 
+const val MAX_DISPLAY: Long = 1_000_000_000_000L
+const val CONTRAST = 0.3f
 
 //Spacer
 @Composable
@@ -35,12 +37,32 @@ class OffsetDp(val x: Dp, val y: Dp){
     fun toPx(): Offset = Offset(this.x.toPx(), this.y.toPx())
 }
 
+//Score format
+fun formatUIScore(
+    number: Long,
+    thousandSeparator: String,
+    trillionSymbol: String,
+): String =
+    if(number == 0L){
+        "0"
+    }else if(number < MAX_DISPLAY){
+        number
+            .toString()
+            .reversed()
+            .chunked(size = 3)
+            .joinToString(thousandSeparator)
+            .reversed()
+    }else {
+        "${(number / MAX_DISPLAY).toInt()}"+ trillionSymbol + "${number % 1000}"
+    }
+
 //Unit converters
 @Composable
 fun Dp.toPx(): Float = with(LocalDensity.current){ this@toPx.toPx() }
 
 @Composable
 fun Dp.toSp(): TextUnit = with(LocalDensity.current){ this@toSp.toSp() }
+
 
 fun Offset.toIntOffset(): IntOffset =
     IntOffset(

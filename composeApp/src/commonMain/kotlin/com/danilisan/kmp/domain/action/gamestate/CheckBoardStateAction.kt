@@ -42,7 +42,7 @@ class CheckBoardStateAction(
         try{
             //Check board integrity
             check(board.values.count { it !is NumberBox.EmptyBox } == gameMode.getBoardSize()) {
-                """Board is not complete: 
+                """Board is not complete:
                         size = ${board.size}, 
                         emptyBoxes = ${board.values.count { it is NumberBox.EmptyBox }}
                      Generating new board."""
@@ -87,7 +87,8 @@ class CheckBoardStateAction(
                 maxLines = board.getMaxLines(),
                 isSelectionPossible = isSelectionPossible.await(),
                 isBingoPossible = isBingoPossible.await(),
-                enoughReloadsLeft = getState().reloadsLeft >= (gameMode.reloadBoardCost * -1)
+                enoughReloadsLeft = getState().reloadsLeft > 0,
+                //enoughReloadsLeft = getState().reloadsLeft >= (gameMode.reloadBoardCost * -1)
             ).let{ currentBoardState ->
                 val newMessage = getDisplayMessageUseCase(
                     boardState = currentBoardState,

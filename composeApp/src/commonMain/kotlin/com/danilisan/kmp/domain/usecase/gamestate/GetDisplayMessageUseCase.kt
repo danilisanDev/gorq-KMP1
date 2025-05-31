@@ -25,6 +25,7 @@ class GetDisplayMessageUseCase(
         boardState: BoardState,
         gameMode: GameMode,
         selectedNumbers: List<Int> = emptyList(),
+        wrongSelection: Boolean = false,
     ):DisplayMessage = withContext(dispatcher.default) {
         when (boardState) {
             BoardState.BLOCKED -> DisplayMessage(
@@ -51,7 +52,11 @@ class GetDisplayMessageUseCase(
             BoardState.READY -> if (selectedNumbers.isNotEmpty()) {
                 DisplayMessage(
                     arg = selectedNumbers.joinToString(gameMode.selectedNumbersSeparator),
-                    highlightColor = DISPLAY_TEXT_SELECTED,
+                    highlightColor = if(wrongSelection){
+                        DISPLAY_TEXT_ERROR
+                    }else{
+                        DISPLAY_TEXT_SELECTED
+                    },
                     weight = FontWeight.Bold,
                     sizeDiff = 2
                 )

@@ -1,6 +1,7 @@
 package com.danilisan.kmp.ui.view.gamestate
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -17,49 +18,43 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
-import com.danilisan.kmp.domain.entity.BoardPosition
 import com.danilisan.kmp.domain.entity.NumberBox
 import com.danilisan.kmp.domain.entity.NumberBox.Companion.EMPTY_VALUE
 import com.danilisan.kmp.ui.theme.Theme
+import com.danilisan.kmp.ui.view.CONTRAST
 import com.danilisan.kmp.ui.view.combineOver
 import com.danilisan.kmp.ui.view.plus
 import kotlinproject.composeapp.generated.resources.Res
 import kotlinproject.composeapp.generated.resources.star7
 import org.jetbrains.compose.resources.vectorResource
 
-const val CONTRAST = 0.3f
+
 
 @Composable
 fun UINumberBox(
-    faceUp: Boolean = true,
     getNumberBox: () -> NumberBox,
     boxSize: Dp,
     applyBorderStyle: (BoxType) -> Brush? = { null },
-    applyShaderColor: () -> Pair<Color, Boolean>? = { null },
-    applyDarkBackground: () -> Boolean = { false },
+    applyShader: () -> BoxShader? = { null },
+    applyStarAnimation: () -> Brush? = { null }
 ) {
-    println("Recomposition of UINumberBox")
-
-    if(faceUp) {
-        FaceUpBox(
-            getNumberBox = getNumberBox,
-            boxSize = boxSize,
-            applyBorderStyle = applyBorderStyle,
-            applyShaderColor = applyShaderColor,
-        )
-    }else{
-        FaceDownBox(
-            applyDarkBackground = applyDarkBackground
-        )
-    }
+    FaceUpBox(
+        getNumberBox = getNumberBox,
+        boxSize = boxSize,
+        applyBorderStyle = applyBorderStyle,
+        applyShader = applyShader,
+        applyStarAnimation = applyStarAnimation
+    )
 }
 
 @Composable
@@ -67,7 +62,8 @@ private fun FaceUpBox(
     getNumberBox: () -> NumberBox,
     boxSize: Dp,
     applyBorderStyle: (BoxType) -> Brush?,
-    applyShaderColor: () -> Pair<Color, Boolean>?,
+    applyShader: () -> BoxShader?,
+    applyStarAnimation: () -> Brush?,
 ){
     val numberBox by remember {
         derivedStateOf{
@@ -148,20 +144,21 @@ private fun FaceUpBox(
             )
             .boxShader(
                 shape = shape,
-                shaderColor = { applyShaderColor()?.first }
+                shaderColor = { applyShader()?.color },
+                shaderSize = { applyShader()?.size ?: 1f }
             )
         ,
         contentAlignment = Alignment.Center,
     ) {
         //Star background icon
         if (boxType.isStar) {
-            //TODO: Crear pequeño halo brillante alrededor
             Image(
                 imageVector = vectorResource(Res.drawable.star7),
                 contentDescription = "star",
                 modifier = Modifier
                     .matchParentSize()
             )
+            StarReflection(applyStarAnimation)
         }
 
         //Number value
@@ -171,46 +168,29 @@ private fun FaceUpBox(
                 value = numberBox.value,
                 applyWhiteText = {
                     boxType != BoxType.REGULAR
-                            || (applyShaderColor()?.second ?: false)
+                            || (applyShader()?.whiteText ?: false)
                 }
             )
         }
-
-        //TODO: Reflect animation (franja diagonal animada)
     }
 }
 
 @Composable
-private fun FaceDownBox(
-    applyDarkBackground: () -> Boolean,
-) {
-    val shape = Theme.shapes.softBlockShape
-    val darkBackground = remember { applyDarkBackground() }
-    Box(Modifier
+private fun StarReflection(
+    applyStarAnimation: () -> Brush?
+){
+    Canvas(Modifier
         .fillMaxSize()
-        .aspectRatio(1f)
-        .background(
-            color = if(darkBackground){
-                Theme.colors.secondary.combineOver(
-                    other = Theme.colors.primary,
-                    alpha = CONTRAST
-                )
-            }else{
-                Theme.colors.secondary.combineOver(
-                    other = Theme.colors.primary,
-                    alpha = CONTRAST * 2
-                )
-            },
-            shape = shape,
-        )
-        .border(
-            width = Theme.borders.mediumBorder,
-            color = Theme.colors.primary,
-            shape = shape,
-        )
-    )
+        .zIndex(5f)
+        .clip(shape = Theme.shapes.roundShape)
+    ) {
+        applyStarAnimation()?.let{ animatedBrush ->
+            drawCircle(
+                brush = animatedBrush
+            )
+        }
+    }
 }
-
 
 @Composable
 private fun TextNumberForUIBox(
@@ -262,12 +242,20 @@ private fun TextNumberForUIBox(
 @Composable
 private fun Modifier.boxShader(
     shape: Shape,
-    shaderColor: () -> Color?
+    shaderColor: () -> Color?,
+    shaderSize: () -> Float,
 ): Modifier = this
     .clip(shape)
     .drawBehind {
-        shaderColor()?.let{
-            drawRect(it)
+        val value = shaderSize()
+        scale(value){
+            shaderColor()?.let{ color ->
+                val radius = 50f - (50f * value)
+                drawRoundRect(
+                    color = color,
+                    cornerRadius = CornerRadius(x = radius, y = radius)
+                )
+            }
         }
     }
 
@@ -340,3 +328,9 @@ private fun BoxType.getBgGradient(): Brush = when (this) {
         Theme.colors.regularGradient.map { it + Theme.colors.primary }
     )
 }
+
+data class BoxShader(
+    val color: Color,
+    val whiteText: Boolean = false,
+    var size: Float = 1f,
+)

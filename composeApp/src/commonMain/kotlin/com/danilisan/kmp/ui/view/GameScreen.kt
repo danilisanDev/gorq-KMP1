@@ -1,9 +1,22 @@
 package com.danilisan.kmp.ui.view
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.AnimationVector1D
+import androidx.compose.animation.core.EaseInOutElastic
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.keyframes
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -14,13 +27,23 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.State
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.scale
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import cafe.adriel.voyager.core.screen.Screen
@@ -33,12 +56,18 @@ import com.danilisan.kmp.ui.theme.Theme
 import com.danilisan.kmp.ui.view.gamestate.UIAdBanner
 import com.danilisan.kmp.ui.view.gamestate.UIBoardContainer
 import com.danilisan.kmp.ui.view.gamestate.UIMessageDisplay
+import com.danilisan.kmp.ui.view.gamestate.UINewGameDialog
 import com.danilisan.kmp.ui.view.gamestate.UIQueue
 import com.danilisan.kmp.ui.view.gamestate.UIReloadButton
 import com.danilisan.kmp.ui.view.gamestate.UIReloadsLeft
 import com.danilisan.kmp.ui.view.gamestate.UIScoreDisplay
+import com.danilisan.kmp.ui.view.gamestate.UISliderMenuBottom
+import com.danilisan.kmp.ui.view.gamestate.UISliderMenuTop
 import com.danilisan.kmp.ui.viewmodel.GameStateViewModel
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.annotation.KoinExperimentalAPI
 import org.koin.core.component.KoinComponent
@@ -130,7 +159,7 @@ class GameScreen: Screen, KoinComponent {
         )
 
         //Background gradient colors
-        val bgColors =
+        val colorList =
             listOf(
                 Theme.colors.transparent,
                 Theme.colors.secondary.withAlpha(0.7f),
@@ -139,13 +168,46 @@ class GameScreen: Screen, KoinComponent {
                 Theme.colors.primary.withAlpha(0.7f),
             )
 
+        //Menu and dialogs
+        val showMenuBar = remember { mutableStateOf(false) }
+        val showNewGameDialog = remember { mutableStateOf(false) }
+        val showTutorialDialog by remember { mutableStateOf(false) }
+
+        //Common animations
+        val progressAnimatedValue = remember{ Animatable(0f) }
+        var isReloading by remember { mutableStateOf(false) }
+        val starAnimatedValue = starAnimatedValue()
+        val applyStarAnimation = {
+            reflectAnimation(
+                light = colorList[4].withAlpha(1f),
+                animatedValue = starAnimatedValue.value
+            ).takeIf{ (board.value.values + queue.value).any{ it is NumberBox.StarBox } && !showMenuBar.value }
+        }
+        val overlappedComponentsAlpha by animateFloatAsState(
+            targetValue = if(showMenuBar.value) 0f else 1f,
+            animationSpec = tween(500)
+        )
+        val menuBarOffset by animateFloatAsState(
+            targetValue = if(showMenuBar.value) 0f else 1f,
+            animationSpec = tween(
+                durationMillis = 400,
+                delayMillis = if(showMenuBar.value) 100 else 0,
+                easing = EaseInOutElastic
+            )
+        )
+
+        UINewGameDialog(
+            showThisDialog = showNewGameDialog,
+            showMenuBar = showMenuBar,
+            newGameAction = viewModel::newGameHandler
+        )
+
         val orientationText = if(portraitMode){
             "Modo retrato"
         }else{
             "Modo paisaje"
         }
 
-        //
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -153,12 +215,12 @@ class GameScreen: Screen, KoinComponent {
                     drawRect(
                         brush = Brush.linearGradient(
                             listOf(
-                                bgColors[0],
+                                colorList[0],
                                 when(boardState.value) {
-                                    BoardState.READY -> bgColors[1]
-                                    BoardState.BLOCKED -> bgColors[2]
-                                    BoardState.BINGO -> bgColors[3]
-                                    BoardState.GAMEOVER -> bgColors[4]
+                                    BoardState.READY -> colorList[1]
+                                    BoardState.BLOCKED -> colorList[2]
+                                    BoardState.BINGO -> colorList[3]
+                                    BoardState.GAMEOVER -> colorList[4]
                                 }
                             )
                         )
@@ -177,69 +239,108 @@ class GameScreen: Screen, KoinComponent {
                     .fillMaxWidth()
                     .weight(2f)
                 )
-                Row(//Queue & button
+                Box(
                     modifier = Modifier
                         .fillMaxWidth(0.9f)
                         .aspectRatio(2f)
                         .zIndex(2f)
                 ) {
-                    Box(
-                        //Queue
-                        modifier = Modifier
-                            .fillMaxHeight()
-                            .weight(2f),
-                    ) {
-                        UIQueue(
-                            getLineLength = { gameMode.lineLength },
-                            getQueueBoxes = { queue.value },
-                            getSelectedSize = { selectedPositions.value.size
-                                                .takeIf{ boardState.value == BoardState.READY }
-                                                ?: -1
-                                           },
-                            getTravellingBox = { travellingBox.value },
-                            getTargetPosition = { targetPositionFromQueue.value },
-                        )
-                    }
-                    Spacer(Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
+                    UISliderMenuTop(
+                        showMenuBar = showMenuBar,
+                        showNewGameDialog = showNewGameDialog,
+                        getGameModeName = { gameMode.name },
+                        animatedOffset = menuBarOffset,
                     )
-                    Column(//Reload
+                    Row(//Queue & button
                         modifier = Modifier
-                            .fillMaxHeight()
-                            .weight(2f)
+                            .fillMaxSize()
+                            .graphicsLayer{
+                                alpha = overlappedComponentsAlpha
+                            }
                     ) {
-                        Box(//Reloads Left
+                        Box(
+                            //Queue
                             modifier = Modifier
-                                .weight(2f)
-                                .fillMaxWidth(),
-                            contentAlignment = Alignment.Center,
+                                .fillMaxHeight()
+                                .weight(2f),
                         ) {
-                            UIReloadsLeft(
-                                getTurnsLeft = { reloadsLeft.value }
-                            )
-                        }
-                        Box(//Reload button
-                            modifier = Modifier
-                                .weight(3f)
-                                .fillMaxWidth(),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            UIReloadButton(
-                                getBoardState = { boardState.value },
-                                getReloadCost = { boardState ->
-                                    when(boardState){
-                                        BoardState.READY -> gameMode.reloadQueueCost
-                                        BoardState.BLOCKED -> gameMode.reloadBoardCost
-                                        else -> 0
+                            UIQueue(
+                                getLineLength = { gameMode.lineLength },
+                                getQueueBoxes = { queue.value },
+                                getSelectedSize = { selectedPositions.value.size
+                                    .takeIf{ boardState.value == BoardState.READY }
+                                    ?: -1
+                                },
+                                getTravellingBox = { travellingBox.value },
+                                getTargetPosition = { targetPositionFromQueue.value },
+                                applyStarAnimation = applyStarAnimation,
+                                reloadingCircle = {
+                                    if(isReloading && boardState.value == BoardState.READY){
+                                        ProgressCircle(progressAnimatedValue.value)
                                     }
                                 },
-                                isEnabled = { !isLoading.value && reloadsLeft.value > 0 },
-                                buttonAction = viewModel::reloadButtonHandler
                             )
+                        }
+                        Spacer(Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
+                        )
+                        Column(//Reload
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .weight(2f)
+                        ) {
+                            Box(//Reloads Left
+                                modifier = Modifier
+                                    .weight(2f)
+                                    .fillMaxWidth(),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                UIReloadsLeft(
+                                    getTurnsLeft = { reloadsLeft.value }
+                                )
+                            }
+                            Box(//Reload button
+                                modifier = Modifier
+                                    .weight(3f)
+                                    .fillMaxWidth(),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                UIReloadButton(
+                                    getBoardState = { boardState.value },
+                                    getReloadCost = { boardState ->
+                                        when(boardState){
+                                            BoardState.READY -> gameMode.reloadQueueCost
+                                            BoardState.BLOCKED -> gameMode.reloadBoardCost
+                                            else -> 0
+                                        }
+                                    },
+                                    isEnabled = { !isLoading.value
+                                            && !showMenuBar.value
+                                            && reloadsLeft.value > 0
+                                            && !isReloading },
+                                    addButtonAction = { isEnabled ->
+                                        val state = boardState.value
+                                        if(state == BoardState.READY) {
+                                            (::reloadPress)(
+                                                progressAnimatedValue,
+                                                { value -> isReloading = value},
+                                                isEnabled,
+                                                viewModel::reloadButtonHandler
+                                            )
+                                        }else {
+                                            (::singlePress)(
+                                                { isEnabled() || state == BoardState.GAMEOVER },
+                                                viewModel::reloadButtonHandler
+                                            )
+                                        }
+                                    }
+                                )
+                            }
                         }
                     }
                 }
+
                 Spacer(Modifier
                     .fillMaxWidth()
                     .height(10.dp)
@@ -251,6 +352,7 @@ class GameScreen: Screen, KoinComponent {
                         .zIndex(1f)
                 ) {
                     UIBoardContainer(
+                        showMenuBar = showMenuBar,
                         getLineLength = { gameMode.lineLength },
                         getBoard = { board.value },
                         getTargetPositionFromQueue = { targetPositionFromQueue.value },
@@ -259,7 +361,9 @@ class GameScreen: Screen, KoinComponent {
                         getCompletedLines = { completedLines.value },
                         getAvailableLines = { availableLines.value },
                         getBoardState = {  boardState.value },
+                        applyStarAnimation = applyStarAnimation,
                         isEnabled = { isSelectAction ->
+                            !showMenuBar.value &&
                             boardState.value == BoardState.READY &&
                                      ( !isLoading.value ||
                                              (isSelectAction && incompleteSelection.value)
@@ -293,15 +397,172 @@ class GameScreen: Screen, KoinComponent {
                     .fillMaxWidth()
                     .weight(1f),
             ){
-                UIScoreDisplay(
-                    getScore = { score.value },
-                    isGoldenStar = { score -> gameMode.isGoldenStar(score) }
-                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(6f)
+                ){
+                    UISliderMenuBottom(
+                        animatedOffset = menuBarOffset,
+                        topScore = MAX_DISPLAY - 1L,
+                    )
+                    UIScoreDisplay(
+                        getScore = { score.value },
+                        applyAlpha = { overlappedComponentsAlpha },
+                        applyStarAnimation = applyStarAnimation,
+                        isGoldenStar = { score -> gameMode.isGoldenStar(score) },
+                    )
+                }
+
                 UIAdBanner("ANUNCIO")
             }
         }
     }
 
+//Star animation
+@Composable
+private fun starAnimatedValue(): State<Float> {
+    val transition = rememberInfiniteTransition()
+    return transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 0f,
+        animationSpec = infiniteRepeatable(
+            animation = keyframes {
+                durationMillis = 7000
+                0f at 1000
+                1f at 1510
+                2f at 1770
+                0f at 2000
+            },
+        )
+    )
+}
+
+private fun reflectAnimation(
+    light: Color,
+    animatedValue: Float
+): Brush{
+    val reflection = mapOf(
+        0.45f to light.withAlpha(0f),
+        0.6f to light.withAlpha(0.2f),
+        0.65f to light.withAlpha(0f),
+        0.70f to light.withAlpha(0.3f),
+        0.75f to light.withAlpha(0.2f),
+        0.9f to light.withAlpha(0f)
+    )
+    return Brush.linearGradient(
+        colorStops = reflection.map{ (stop, color) ->
+            Pair(
+                stop.animateColorStop(animatedValue),
+                color.combineOver(
+                    other = light.withAlpha(animatedValue * 0.3f)
+                )
+            )
+        }.toTypedArray()
+    )
+}
+
+private fun Float.animateColorStop(animatedValue: Float) =
+    (this + animatedValue).let{
+        if(it > 2f) it - 2f
+        else if(it > 1f) it - 1f
+        else it
+    }
+
+
+
+//Reloading circle
+@Composable
+private fun BoxScope.ProgressCircle(
+    animatedValue: Float
+){
+    val progressColor = Theme.colors.primary
+    val bgColor = Theme.colors.secondary.withAlpha(0.5f)
+    val brush = Brush.radialGradient(
+        listOf(
+            progressColor,
+            progressColor.withAlpha(0.4f)
+        )
+    )
+
+    Canvas(
+        Modifier
+            .fillMaxWidth()
+            .aspectRatio(1f)
+            .align(Alignment.Center)
+            .graphicsLayer{
+                alpha = 0.4f + (animatedValue / 360f) * 0.4f
+            }
+    ) {
+        scale(0.9f) {
+            drawCircle(
+                brush = brush
+            )
+            drawArc(
+                color = bgColor,
+                size = Size(size.width, size.width),
+                startAngle = 270f,
+                sweepAngle = -360f + animatedValue,
+                useCenter = true,
+            )
+        }
+        scale(0.95f) {
+            drawCircle(
+                color = progressColor.withAlpha(0.7f),
+                style = Stroke(size.width / 50)
+            )
+        }
+    }
+}
+fun Modifier.singlePress(
+    isEnabled: () -> Boolean,
+    buttonAction: () -> Unit,
+): Modifier = this.clickable(
+    onClick = buttonAction,
+    enabled = isEnabled(),
+)
+
+fun Modifier.reloadPress(
+    animatedValue: Animatable<Float, AnimationVector1D>,
+    setIsReloading: (Boolean) -> Unit,
+    isEnabled: () -> Boolean,
+    buttonAction: () -> Unit,
+): Modifier = this.clickable(
+    onClick = {},
+    enabled = isEnabled()
+)
+    .pointerInput(Unit){
+        detectTapGestures(
+            onPress = {
+                if(isEnabled()){
+                    coroutineScope {
+                        setIsReloading(true)
+                        val duration = 717
+                        val animationJob = launch{
+                            animatedValue.animateTo(
+                                targetValue = 360f,
+                                animationSpec = tween(
+                                    durationMillis = duration,
+                                    easing = LinearEasing,
+                                )
+                            )
+                            buttonAction()
+                            animatedValue.snapTo(0f)
+                            setIsReloading(false)
+                        }
+
+                        delay(duration / 2L)
+                        tryAwaitRelease()
+                        animationJob.cancel()
+                        animatedValue.snapTo(0f)
+                        setIsReloading(false)
+                    }
+                }
+            }
+        )
+}
+
+//Background
 @Composable
 fun UIMosaicBackground(
     maxWidth: Float,

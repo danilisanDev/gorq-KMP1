@@ -74,6 +74,17 @@ class GameStateViewModel(
         }
     }
 
+    fun newGameHandler(gameModeId: Int = 0){
+        viewModelScope.launch(dispatcher.main){
+            setIsLoadingState(true)
+            actionManager.generateNewGame(
+                gameModeId = gameModeId,
+                updateViewModelGameMode = ::updateGameModeState
+            )
+            setIsLoadingState(false)
+        }
+    }
+
     fun reloadButtonHandler() =
         viewModelScope.launch(dispatcher.main) {
             setIsLoadingState(true)
@@ -111,11 +122,5 @@ class GameStateViewModel(
                 }
             }
         }
-    /*
-    fun resumeGameHandler()
-    fun newGameHandler()
-     */
-
-
     //endregion
 }

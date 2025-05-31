@@ -1,14 +1,17 @@
 package com.danilisan.kmp.ui.view.gamestate
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import com.danilisan.kmp.ui.state.BoardState
 import com.danilisan.kmp.ui.theme.Theme
 import com.danilisan.kmp.domain.entity.BoardPosition
@@ -23,6 +26,7 @@ const val INNER_SIZE = 1 - (FRAME_WIDTH * 2)
 
 @Composable
 fun UIBoardContainer(
+    showMenuBar: MutableState<Boolean>,
     getLineLength: () -> Int,
     getBoard: () -> Map<BoardPosition, NumberBox>,
     getBoardState: () -> BoardState = { BoardState.BLOCKED },
@@ -31,6 +35,7 @@ fun UIBoardContainer(
     getAvailableLines: () -> Set<Int> = { emptySet() },
     getTargetPositionFromQueue: () -> BoardPosition?,
     getSelectedPositions: () -> List<BoardPosition> = { emptyList() },
+    applyStarAnimation: () -> Brush?,
     isEnabled: (Boolean) -> Boolean = { _ -> false },
     selectAction: (BoardPosition) -> Unit = {},
     dragAction: (BoardPosition?, Int) -> Unit = { _, _ -> },
@@ -62,6 +67,7 @@ fun UIBoardContainer(
                     ?.drop((lineLength - 1) * completedLinesSize)
                     ?: emptyList()
             },
+            showMenuBar = showMenuBar,
         )
 
         //Board display
@@ -80,6 +86,7 @@ fun UIBoardContainer(
                     .aspectRatio(1f)
             ) {
                 UIBoardNumbers(
+                    showMenuBar = showMenuBar,
                     getLineLength = getLineLength,
                     getBoard = getBoard,
                     getTargetPositionFromQueue = getTargetPositionFromQueue,
@@ -87,11 +94,26 @@ fun UIBoardContainer(
                     getLinedPositions = getLinedPositions,
                     getCompletedLinesSize = { getCompletedLines().size },
                     getBoardState = getBoardState,
+                    applyStarAnimation = applyStarAnimation,
                     isSelectionEnabled = { isEnabled(true) },
                     selectAction = selectAction
                 )
             }
         }
+        ClosingMenuDisplay(showMenuBar)
+    }
+}
+
+@Composable
+private fun ClosingMenuDisplay(showMenuBar: MutableState<Boolean>){
+    if(showMenuBar.value){
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .clickable{
+                    showMenuBar.value = false
+                }
+        )
     }
 }
 

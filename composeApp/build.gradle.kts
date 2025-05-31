@@ -114,6 +114,7 @@ android {
 
 dependencies {
 
+    implementation(libs.androidx.core.animation)
     debugImplementation(compose.uiTooling)
 }
 

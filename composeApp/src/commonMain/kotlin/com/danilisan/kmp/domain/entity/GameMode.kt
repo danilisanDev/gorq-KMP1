@@ -45,12 +45,13 @@ sealed class GameMode {
     fun getGameModeState(): GameModeState =
         GameModeState(
             modeId = getModeId(),
+            name = modeName,
             icon = icon,
             queueSize = queueSize,
             lineLength = lineLength,
             reloadBoardCost = reloadBoardCost * -1,
             reloadQueueCost = reloadQueueCost * -1,
-            ::isGoldenStar
+            isGoldenStar = ::isGoldenStar
         )
 
     //region WIN CONDITION RULE

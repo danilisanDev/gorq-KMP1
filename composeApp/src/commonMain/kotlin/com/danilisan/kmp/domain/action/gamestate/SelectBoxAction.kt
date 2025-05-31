@@ -2,7 +2,7 @@ package com.danilisan.kmp.domain.action.gamestate
 
 import com.danilisan.kmp.core.provider.DispatcherProvider
 import com.danilisan.kmp.domain.action.gamestate.GameStateActionManager.Companion.BASE_ACTION_DELAY
-import com.danilisan.kmp.domain.action.gamestate.GameStateActionManager.Companion.INCOMPLETE_SELECTION_DELAY
+import com.danilisan.kmp.domain.action.gamestate.GameStateActionManager.Companion.SELECTION_DELAY
 import com.danilisan.kmp.domain.entity.BoardPosition
 import com.danilisan.kmp.domain.entity.GameMode
 import com.danilisan.kmp.domain.usecase.gamestate.GetDisplayMessageUseCase
@@ -69,7 +69,7 @@ class SelectBoxAction(
                     getState, updateState,
                     incompleteSelection = true
                 )
-                delay(INCOMPLETE_SELECTION_DELAY)
+                delay(SELECTION_DELAY)
                 if (!getState().incompleteSelection) {
                     return@withContext true
                 } else {
@@ -79,14 +79,24 @@ class SelectBoxAction(
                     )
                 }
             } else {
-                delay(INCOMPLETE_SELECTION_DELAY)
+                delay(SELECTION_DELAY)
             }
             updateGameAction(getState, updateState, gameMode,
                 params = UpdateGameAction.UpdateOptions.AFTER_SELECTION
             )
         } else if (selectionSize >= gameMode.maxSelection) {
-            //Empty selected numbers if size == maxSelection
-            delay(BASE_ACTION_DELAY / 2)
+            //Negative visual feedback
+            updateStateFields(
+                getState,updateState,
+                displayMessage = getDisplayMessageUseCase(
+                    boardState = currentBoardState,
+                    gameMode = gameMode,
+                    selectedNumbers = selectedValues,
+                    wrongSelection = true,
+                )
+            )
+            delay(SELECTION_DELAY)
+            //Empty selected numbers
             updateStateFields(
                 getState, updateState,
                 selectedPositions = emptyList(),

@@ -8,6 +8,5 @@ data class ScoreModel (
     val points: Long = 0L,
     val lines: Int = 0,
     val turns: Int = 0,
-    val date: LocalDateTime? = null,
 )
 
