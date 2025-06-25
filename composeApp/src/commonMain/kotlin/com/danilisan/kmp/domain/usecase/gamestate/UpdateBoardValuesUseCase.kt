@@ -1,6 +1,5 @@
 package com.danilisan.kmp.domain.usecase.gamestate
 
-import com.danilisan.kmp.Mocks
 import com.danilisan.kmp.core.provider.DispatcherProvider
 import com.danilisan.kmp.domain.entity.BoardPosition
 import com.danilisan.kmp.domain.entity.GameMode
@@ -42,7 +41,7 @@ class UpdateBoardValuesUseCase(
                 parity = parityOrderList[index],
                 getNeededNumbers = gameMode::getWinConditionNumbers,
             )?.let { newRegularBox ->
-                currentPool.excludeFromPool(newRegularBox.value)
+                currentPool.removeFromPool(newRegularBox.value)
                 addBoxOnBoardUseCase(
                     newBox = newRegularBox,
                     targetPosition = targetPosition,

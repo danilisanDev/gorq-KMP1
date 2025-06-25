@@ -15,10 +15,17 @@ import kotlinproject.composeapp.generated.resources.multiplyMode
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.StringResource
 
+//TODO Meter en un package gameMode y separar cada gameMode en un fichero
+
+/**
+ * Super class to enclose the rules of a game,
+ * with default values and functions,
+ * that shall be extended by a data object for every game mode.
+ */
 sealed class GameMode {
     //Common values
     protected val boxNumbers: IntRange = (0..9)
-    val turnsForStar: Int = 10
+    private val turnsForStar: Int = 10
     val maxStars: Int = 3
 
     //Mode dependent values
@@ -56,7 +63,7 @@ sealed class GameMode {
 
     //region WIN CONDITION RULE
     protected open val goalValues: Set<Int> = setOf(7, 17)
-    fun getGoalValuesToString(): String = goalValues.joinToString(" | ")
+    fun getGoalValuesToString(): String = goalValues.joinToString("#")
 
     //Public common methods
     suspend fun isWinCondition(lineValues: List<Int>): Boolean =
@@ -119,7 +126,7 @@ sealed class GameMode {
         (1..lines).fold(0){acc, i -> acc + i * 100}.toLong()
 
     open suspend fun getReloadIncrementForLines(lines: Int): Int =
-        (lines - 1).takeIf{ it > 0 }?: 0
+        (lines - 2).takeIf{ it > 0 }?: 0
 
     open suspend fun getScoreForBingo(): Score = Score(
         points = getPointsForLines(17),

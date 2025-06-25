@@ -145,7 +145,7 @@ fun UIScoreDisplay(
     var showIncrement by remember { mutableStateOf(false) }
     LaunchedEffect(score.points) {
         showIncrement = true
-        delay(UPDATE_BOARD_TOTAL_DELAY + 200)
+        delay(UPDATE_BOARD_TOTAL_DELAY * 2 + 200)
         showIncrement = false
     }
     if(showIncrement){
@@ -199,7 +199,7 @@ private fun ScoreIncrement(
         if (getIncrementString() != null) {
             isVisible = true
             liftAnimation = true
-            delay(UPDATE_BOARD_TOTAL_DELAY)
+            delay(UPDATE_BOARD_TOTAL_DELAY * 2)
             isVisible = false
         }
     }
@@ -244,7 +244,7 @@ private fun DrawScope.drawScoreIncrement(
         style = TextStyle(
             color = getColor(),
             fontSize = fontSize,
-            fontWeight = if (shadow) FontWeight.ExtraBold else FontWeight.ExtraBold,
+            fontWeight = FontWeight.ExtraBold,
         )
     ).let { textLayout ->
         val shadowOffset = if (shadow) size.height / 51f else 0f
@@ -256,7 +256,6 @@ private fun DrawScope.drawScoreIncrement(
             )
         )
     }
-
 }
 
 @Composable

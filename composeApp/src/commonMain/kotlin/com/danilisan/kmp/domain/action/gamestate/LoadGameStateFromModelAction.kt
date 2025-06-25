@@ -3,15 +3,22 @@ package com.danilisan.kmp.domain.action.gamestate
 import com.danilisan.kmp.core.provider.DispatcherProvider
 import com.danilisan.kmp.domain.entity.BoardHelper.getEmptyPositionsSortedDiagonally
 import com.danilisan.kmp.domain.entity.GameMode
-import com.danilisan.kmp.domain.usecase.gamestate.AddBoxOnBoardUseCase
 import com.danilisan.kmp.domain.usecase.gamestate.CreateEmptyBoardUseCase
 import com.danilisan.kmp.ui.state.GameStateUiState
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+
+/**
+ * Action performed right after initial load.
+ * Persisted GameState is loaded after creating an empty board
+ * with diagonal-sorted updating positions.
+ * Finally, checks BoardState.
+ * @param params (expected GameStateUiState) persisted GameState.
+ */
 
 class LoadGameStateFromModelAction(
     override val dispatcher: DispatcherProvider,
     private val createEmptyBoardUseCase: CreateEmptyBoardUseCase,
-    private val addBoxOnBoardUseCase: AddBoxOnBoardUseCase,
     private val checkBoardStateAction: CheckBoardStateAction,
 ) : GameStateAction {
     override suspend operator fun invoke(
@@ -30,33 +37,25 @@ class LoadGameStateFromModelAction(
         //Create an empty board
         val emptyBoard = createEmptyBoardUseCase(gameMode.lineLength)
 
-        //Load empty board, and saved turnsLeft, queue and Score
+        //Load empty board with diagonal-sorted order
         updateStateFields(
             getState, updateState,
             board = emptyBoard,
-            queue = savedGameState.queue,
-            reloadsDifference = savedGameState.reloadsLeft,
-            scoreDifference = savedGameState.score
+            updatingPositions = emptyBoard.getEmptyPositionsSortedDiagonally(),
         )
 
-        //Update board with animation
-        emptyBoard.getEmptyPositionsSortedDiagonally().forEach { targetPosition ->
-            savedGameState.board[targetPosition]?.let { savedBox ->
-                getState().board.let { currentBoard ->
-                    addBoxOnBoardUseCase(
-                        board = currentBoard,
-                        targetPosition = targetPosition,
-                        newBox = savedBox,
-                    )
-                        .let { updatedBoard ->
-                            updateStateFields(
-                                getState, updateState,
-                                board = updatedBoard
-                            )
-                        }
-                }
-            }
-        }
+        //Delay for the empty board to load
+        delay(210)
+
+        //Update board
+        updateStateFields(
+            getState, updateState,
+            board = savedGameState.board,
+            queue = savedGameState.queue,
+            updatingPositions = emptyBoard.getEmptyPositionsSortedDiagonally(),
+            reloadsDifference = savedGameState.reloadsLeft,
+            score = savedGameState.score,
+        )
 
         //Invoke check board state Action
         checkBoardStateAction(getState, updateState, gameMode)

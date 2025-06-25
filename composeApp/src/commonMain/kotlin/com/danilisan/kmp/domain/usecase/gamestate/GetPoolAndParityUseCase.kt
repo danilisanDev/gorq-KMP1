@@ -24,7 +24,7 @@ class GetPoolAndParityUseCase(
                 repetitions = repetitions,
             ).also { currentPool ->
                 otherNumbers.forEach { number ->
-                    currentPool.excludeFromPool(number)
+                    currentPool.removeFromPool(number)
                 }
             }
         }

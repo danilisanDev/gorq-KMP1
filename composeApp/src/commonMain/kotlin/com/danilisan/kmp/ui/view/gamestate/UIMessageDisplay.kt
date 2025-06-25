@@ -41,6 +41,7 @@ import com.danilisan.kmp.ui.theme.Theme
 import com.danilisan.kmp.ui.view.toSp
 import com.danilisan.kmp.ui.view.withAlpha
 import kotlinproject.composeapp.generated.resources.Res
+import kotlinproject.composeapp.generated.resources.displayMsgOrOperator
 import kotlinproject.composeapp.generated.resources.refresh
 import kotlinx.coroutines.delay
 import org.jetbrains.compose.resources.PluralStringResource
@@ -162,15 +163,20 @@ fun UIMessageDisplay(
 }
 
 @Composable
-private fun DisplayMessage.toStringMessage(): String {
-    return res?.let { resId ->
+private fun DisplayMessage.toStringMessage(): String =
+    res?.let { resId ->
         when(resId){
-            is StringResource -> stringResource(resId, arg)
+            is StringResource -> stringResource(
+                resId,
+                argWithOrOperator(
+                    orOperator = stringResource(resource = Res.string.displayMsgOrOperator)
+                )
+            )
             is PluralStringResource -> pluralStringResource(resId, arg.toIntOrNull()?: 0, arg.toIntOrNull()?: 0)
             else -> ""
         }
     } ?: arg
-}
+
 
 @Composable
 private fun Int.toColor() = when(this){

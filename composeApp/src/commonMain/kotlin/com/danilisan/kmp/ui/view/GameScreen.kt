@@ -47,7 +47,6 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import cafe.adriel.voyager.core.screen.Screen
-import com.danilisan.kmp.domain.entity.BoardPosition
 import com.danilisan.kmp.domain.entity.DisplayMessage
 import com.danilisan.kmp.domain.entity.NumberBox
 import com.danilisan.kmp.domain.entity.Score
@@ -130,6 +129,9 @@ class GameScreen: Screen, KoinComponent {
         val boardState = viewModel.gameState.map { it.boardState }.collectAsState(
             initial = BoardState.READY
         )
+        val updatingPositions = viewModel.gameState.map { it.updatingPositions }.collectAsState(
+            initial = emptyList()
+        )
         val availableLines = viewModel.gameState.map { it.availableLines }.collectAsState(
             initial = emptySet()
         )
@@ -141,12 +143,6 @@ class GameScreen: Screen, KoinComponent {
         )
         val incompleteSelection = viewModel.gameState.map { it.incompleteSelection }.collectAsState(
             initial = false
-        )
-        val travellingBox = viewModel.gameState.map { it.travellingBox }.collectAsState(
-            initial = NumberBox.EmptyBox()
-        )
-        val targetPositionFromQueue = viewModel.gameState.map { it.targetPositionFromQueue }.collectAsState(
-            initial = BoardPosition()
         )
         val linedPositions = viewModel.gameState.map { it.linedPositions }.collectAsState(
             initial = emptyList()
@@ -271,8 +267,7 @@ class GameScreen: Screen, KoinComponent {
                                     .takeIf{ boardState.value == BoardState.READY }
                                     ?: -1
                                 },
-                                getTravellingBox = { travellingBox.value },
-                                getTargetPosition = { targetPositionFromQueue.value },
+                                getUpdatingPositions = { updatingPositions.value },
                                 applyStarAnimation = applyStarAnimation,
                                 reloadingCircle = {
                                     if(isReloading && boardState.value == BoardState.READY){
@@ -355,7 +350,7 @@ class GameScreen: Screen, KoinComponent {
                         showMenuBar = showMenuBar,
                         getLineLength = { gameMode.lineLength },
                         getBoard = { board.value },
-                        getTargetPositionFromQueue = { targetPositionFromQueue.value },
+                        getUpdatingPositions = { updatingPositions.value },
                         getSelectedPositions = { selectedPositions.value },
                         getLinedPositions = { linedPositions.value.filterNotNull() },
                         getCompletedLines = { completedLines.value },
@@ -404,7 +399,7 @@ class GameScreen: Screen, KoinComponent {
                 ){
                     UISliderMenuBottom(
                         animatedOffset = menuBarOffset,
-                        topScore = MAX_DISPLAY - 1L,
+                        topScore = { score.value.maxPoints },
                     )
                     UIScoreDisplay(
                         getScore = { score.value },

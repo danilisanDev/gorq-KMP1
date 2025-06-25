@@ -2,7 +2,6 @@ package com.danilisan.kmp.domain.action.gamestate
 
 import com.danilisan.kmp.core.provider.DispatcherProvider
 import com.danilisan.kmp.domain.entity.BoardHelper.getMaxLines
-import com.danilisan.kmp.domain.entity.BoardPosition
 import com.danilisan.kmp.domain.entity.GameMode
 import com.danilisan.kmp.domain.entity.NumberBox
 import com.danilisan.kmp.domain.usecase.gamestate.CalculateBoardStateUseCase
@@ -16,6 +15,14 @@ import com.danilisan.kmp.ui.state.GameStateUiState
 import io.github.aakira.napier.Napier
 import kotlinx.coroutines.async
 import kotlinx.coroutines.withContext
+
+/**
+ * To perform after every update of board boxes.
+ * 1. Checks for available lines.
+ * 2. Checks BoardState (READY, BLOCKED, BINGO, GAMEOVER)
+ * 3. Shows the corresponding message
+ * @param params (expected none)
+ */
 
 class CheckBoardStateAction(
     override val dispatcher: DispatcherProvider,
@@ -88,7 +95,6 @@ class CheckBoardStateAction(
                 isSelectionPossible = isSelectionPossible.await(),
                 isBingoPossible = isBingoPossible.await(),
                 enoughReloadsLeft = getState().reloadsLeft > 0,
-                //enoughReloadsLeft = getState().reloadsLeft >= (gameMode.reloadBoardCost * -1)
             ).let{ currentBoardState ->
                 val newMessage = getDisplayMessageUseCase(
                     boardState = currentBoardState,
@@ -97,9 +103,8 @@ class CheckBoardStateAction(
                 updateStateFields(getState, updateState,
                     availableLines = availableLines,
                     boardState = currentBoardState,
-//                    boardState = BoardState.BINGO,
+                    updatingPositions = emptyList(),
                     displayMessage = newMessage,
-                    targetPositionFromQueue = BoardPosition(),
                 )
             }
             return@withContext true
@@ -117,7 +122,6 @@ class CheckBoardStateAction(
                     boardState = BoardState.READY,
                     gameMode = gameMode
                 ),
-                targetPositionFromQueue = BoardPosition(),
             )
             return@withContext true
         }

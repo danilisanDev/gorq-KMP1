@@ -17,6 +17,18 @@ import kotlinproject.composeapp.generated.resources.Res
 import kotlinproject.composeapp.generated.resources.displayMsgNewLines
 import kotlinx.coroutines.withContext
 
+/**
+ * LINE-START -> **LINE_DRAG** -> LINE_END
+ * Action for the drag gesture performed on the Board (always after LineStartAction).
+ * New BoardPosition is added into GameState (linedPositions);
+ * if the drag gesture is going back (BoardPosition is second to last in linedPositions),
+ * the 'new' BoardPosition is removed from GameState
+ * When this action is performed, SelectBoxAction is excluded (until LineEndAction).
+ * Display message is updated depending on numbers selected.
+ * @param param (expected BoardPosition) BoardPosition where the pointer is dragged to
+ *      If the BoardPosition remains the same, do nothing.
+ *      If the BoardPosition is null (out of bounds of the board), do nothing.
+ */
 class LineDragAction(
     override val dispatcher: DispatcherProvider,
     private val updateSilverStarValuesUseCase: UpdateSilverStarValuesUseCase,
@@ -60,9 +72,7 @@ class LineDragAction(
         linedPositions
             .takeIf{ it.size > 1 && it[it.size - 2] == params }
             ?.run{ //Movement backwards
-                //TODO: Si la última es null, no se elimina
                 removeAt(size - 1) //Remove last position
-                    //.takeIf { it != null }
                     .run {
                         //If removed is not null -> Check line undoing
                         if (positionsInCurrentLine.size == 1 && completedLines.isNotEmpty()) {
@@ -173,13 +183,3 @@ private fun printLinesState(
                 "Line status = $linesStatus"
     )
 }
-
-//private fun MutableList<BoardPosition?>.addPositionOrNull(
-//    newPosition: BoardPosition? = null
-//) = this.run {
-//    remove(null)
-//    add(newPosition)
-//}
-
-
-

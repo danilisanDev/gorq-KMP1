@@ -1,11 +1,18 @@
 package com.danilisan.kmp.domain.entity
 
-class Score(
+import androidx.compose.runtime.Stable
+
+/**
+ * Represents Score during a game.
+ */
+
+@Stable
+data class Score(
     val points: Long = 0L,
     val lines: Int = 0,
     val turns: Int = 0,
-    val increment: Long = 0,
-    val maxPoints: Long = 0L
+    val increment: Long = 0L,
+    var maxPoints: Long = 0L
 ) {
     operator fun plus(other: Score?) = when{
         other == null -> this

@@ -34,7 +34,7 @@ class UpdateQueueValuesUseCase(
                 isBlockBox = isWithBlockBox,
             ).let { newBox ->
                 //Exclude new box value from pool
-                currentPool.excludeFromPool(newBox.value)
+                currentPool.removeFromPool(newBox.value)
                 addBoxOnQueueUseCase(
                     currentQueue = resultQueue,
                     newBox = newBox,

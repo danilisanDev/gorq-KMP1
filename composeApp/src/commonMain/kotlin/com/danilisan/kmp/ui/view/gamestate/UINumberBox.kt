@@ -38,52 +38,15 @@ import kotlinproject.composeapp.generated.resources.Res
 import kotlinproject.composeapp.generated.resources.star7
 import org.jetbrains.compose.resources.vectorResource
 
-
-
 @Composable
 fun UINumberBox(
     getNumberBox: () -> NumberBox,
     boxSize: Dp,
-    applyBorderStyle: (BoxType) -> Brush? = { null },
+    applyBorderStyle: (NumberBox) -> Brush? = { null },
     applyShader: () -> BoxShader? = { null },
     applyStarAnimation: () -> Brush? = { null }
 ) {
-    FaceUpBox(
-        getNumberBox = getNumberBox,
-        boxSize = boxSize,
-        applyBorderStyle = applyBorderStyle,
-        applyShader = applyShader,
-        applyStarAnimation = applyStarAnimation
-    )
-}
-
-@Composable
-private fun FaceUpBox(
-    getNumberBox: () -> NumberBox,
-    boxSize: Dp,
-    applyBorderStyle: (BoxType) -> Brush?,
-    applyShader: () -> BoxShader?,
-    applyStarAnimation: () -> Brush?,
-){
-    val numberBox by remember {
-        derivedStateOf{
-            getNumberBox()
-        }
-    }
-    val boxType by remember{
-        derivedStateOf{
-            when (numberBox) {
-                is NumberBox.BlockBox -> BoxType.BLOCK
-                is NumberBox.RegularBox -> BoxType.REGULAR
-                is NumberBox.GoldenStarBox -> BoxType.GOLDEN
-                is NumberBox.SilverStarBox -> BoxType.SILVER
-                else -> BoxType.EMPTY
-            }
-        }
-    }
-
-    //Impossible case
-    if (boxType == BoxType.EMPTY) return
+    if(getNumberBox() is NumberBox.EmptyBox) return
 
     //Shape
     val shapeList = listOf(
@@ -91,9 +54,9 @@ private fun FaceUpBox(
         Theme.shapes.softBlockShape,
         Theme.shapes.roundShape,
     )
-    val shape = when (boxType) {
-        BoxType.REGULAR -> shapeList[0]
-        BoxType.BLOCK -> shapeList[1]
+    val shape = when (getNumberBox()) {
+        is NumberBox.RegularBox -> shapeList[0]
+        is NumberBox.BlockBox -> shapeList[1]
         else -> shapeList[2]
     }
 
@@ -105,26 +68,28 @@ private fun FaceUpBox(
     )
     val borderColors by remember {
         derivedStateOf {
-            applyBorderStyle(boxType)
-                ?: when (boxType) {
-                    BoxType.REGULAR ->
-                        colorList[2]
-                    BoxType.BLOCK ->
-                        colorList[0].combineOver(
-                            other = colorList[1],
-                            alpha = CONTRAST
-                        )
-                    else -> null
-                }
+            getNumberBox().let{ numberBox ->
+                applyBorderStyle(numberBox)
+                    ?: when (numberBox) {
+                        is NumberBox.RegularBox ->
+                            colorList[2]
+                        is NumberBox.BlockBox ->
+                            colorList[0].combineOver(
+                                other = colorList[1],
+                                alpha = CONTRAST
+                            )
+                        else -> null
+                    }
+            }
         }
     }
     val borderWidthList = listOf(
         Theme.borders.regularBorder(boxSize),
         Theme.borders.blockBorder(boxSize),
     )
-    val borderWidth = when (boxType) {
-        BoxType.REGULAR -> borderWidthList[0]
-        BoxType.BLOCK -> borderWidthList[1]
+    val borderWidth = when (getNumberBox()) {
+        is NumberBox.RegularBox -> borderWidthList[0]
+        is NumberBox.BlockBox -> borderWidthList[1]
         else -> null
     }
 
@@ -133,8 +98,8 @@ private fun FaceUpBox(
             .fillMaxSize()
             .aspectRatio(1f)
             .padding(1.dp)
-            .boxBackground(
-                boxType = boxType,
+            .background(
+                brush = getNumberBox().getBgGradient(),
                 shape = shape,
             )
             .boxBorder(
@@ -150,27 +115,29 @@ private fun FaceUpBox(
         ,
         contentAlignment = Alignment.Center,
     ) {
-        //Star background icon
-        if (boxType.isStar) {
-            Image(
-                imageVector = vectorResource(Res.drawable.star7),
-                contentDescription = "star",
-                modifier = Modifier
-                    .matchParentSize()
-            )
-            StarReflection(applyStarAnimation)
-        }
+        getNumberBox().let{ numberBox ->
+            //Star background icon
+            if (numberBox is NumberBox.StarBox) {
+                Image(
+                    imageVector = vectorResource(Res.drawable.star7),
+                    contentDescription = "star",
+                    modifier = Modifier
+                        .matchParentSize()
+                )
+                StarReflection(applyStarAnimation)
+            }
 
-        //Number value
-        if (numberBox.value != EMPTY_VALUE) {
-            TextNumberForUIBox(
-                boxSize = boxSize,
-                value = numberBox.value,
-                applyWhiteText = {
-                    boxType != BoxType.REGULAR
-                            || (applyShader()?.whiteText ?: false)
-                }
-            )
+            //Number value
+            if (numberBox.value != EMPTY_VALUE) {
+                TextNumberForUIBox(
+                    boxSize = boxSize,
+                    value = numberBox.value,
+                    applyWhiteText = {
+                        numberBox !is NumberBox.RegularBox
+                                || (applyShader()?.whiteText ?: false)
+                    }
+                )
+            }
         }
     }
 }
@@ -203,7 +170,6 @@ private fun TextNumberForUIBox(
             applyWhiteText()
         }
     }
-
     val valueString = when {
         value < 0 -> "$value "
         value > 9 -> value.toChar().toString()
@@ -289,33 +255,14 @@ private fun Modifier.boxBorder(
 }
 
 @Composable
-private fun Modifier.boxBackground(
-    boxType: BoxType,
-    shape: Shape,
-): Modifier = this.background(
-    brush = boxType.getBgGradient(),
-    shape = shape
-)
-
-enum class BoxType(val isStar: Boolean = false) {
-    REGULAR,
-    BLOCK,
-    GOLDEN(isStar = true),
-    SILVER(isStar = true),
-    EMPTY
-}
-
-@Composable
-private fun BoxType.getBgGradient(): Brush = when (this) {
-    BoxType.GOLDEN -> Brush.sweepGradient(
+private fun NumberBox.getBgGradient(): Brush = when (this) {
+    is NumberBox.GoldenStarBox -> Brush.sweepGradient(
         Theme.colors.starGradient.map { it + Theme.colors.golden }
     )
-
-    BoxType.SILVER -> Brush.sweepGradient(
+    is NumberBox.SilverStarBox -> Brush.sweepGradient(
         Theme.colors.starGradient.map { it + Theme.colors.grey }
     )
-
-    BoxType.BLOCK -> {
+    is NumberBox.BlockBox -> {
         val bgColor = Theme.colors.secondary
             .combineOver(
                 other = Theme.colors.primary,
@@ -323,7 +270,6 @@ private fun BoxType.getBgGradient(): Brush = when (this) {
             )
         Brush.linearGradient(listOf(bgColor, bgColor))
     }
-
     else -> Brush.linearGradient(
         Theme.colors.regularGradient.map { it + Theme.colors.primary }
     )

@@ -3,7 +3,7 @@ import com.danilisan.kmp.domain.entity.BoardHelper.LineDirection
 import com.danilisan.kmp.domain.entity.BoardHelper.getDirectionAndIndexFromLineId
 
 /**
- * Represents a two-dimension position on the GameBoard
+ * Represents a two-dimension position on the Board
  */
 
 class BoardPosition (

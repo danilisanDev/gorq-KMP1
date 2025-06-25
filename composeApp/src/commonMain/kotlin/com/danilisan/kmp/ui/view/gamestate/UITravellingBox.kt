@@ -1,293 +1,246 @@
 package com.danilisan.kmp.ui.view.gamestate
 
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.AnimationSpec
-import androidx.compose.animation.core.Ease
-import androidx.compose.animation.core.EaseInOut
-import androidx.compose.animation.core.VectorConverter
+import androidx.compose.animation.core.AnimationVector1D
+import androidx.compose.animation.core.EaseInOutCubic
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.Stable
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.GraphicsLayerScope
 import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.scale
+import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.danilisan.kmp.domain.action.gamestate.GameStateActionManager.Companion.TRAVEL_ACTION_DELAY
 import com.danilisan.kmp.domain.entity.BoardPosition
 import com.danilisan.kmp.domain.entity.NumberBox
 import com.danilisan.kmp.ui.theme.Theme
-import com.danilisan.kmp.ui.view.OffsetDp
 import com.danilisan.kmp.ui.view.toPx
-import kotlinx.coroutines.CoroutineScope
+import com.danilisan.kmp.ui.view.withAlpha
 import kotlinx.coroutines.launch
 
-const val TRAVELLING_ZOOM = 1.4f
+const val ANIMATED_TRAVEL = 0
+const val ANIMATED_ELEVATION = 1
 
 @Composable
 fun UITravellingBox(
-    getTravellingBox: () -> NumberBox,
-    getTargetPosition: () -> BoardPosition,
+    getTravellingBox: () -> TravellingBox?,
     getLineLength: () -> Int,
-    boxRelativeSize: Float,
-    offset: OffsetDp,
-    containerWidth: Dp,
+    boxProperties: QueueBoxProperties,
+    containerWidthInPx: Float,
     applyStarAnimation: () -> Brush?,
-    scopeProvider: () -> CoroutineScope,
 ) {
-    val travellingBox = getTravellingBox()
-    val targetPosition = getTargetPosition()
-    val lineLength = getLineLength()
-
-    val boardOffsetValues = remember{
-        calculateBoardDimensionValues(
-            containerWidth = containerWidth,
-            boxRelativeSize = boxRelativeSize,
-            lineLength = lineLength,
-        )
+    val dpToPx = 1.dp.toPx()
+    val boardDimensions by remember {
+        derivedStateOf {
+            BoardLayoutValues(
+                containerWidth = containerWidthInPx,
+                lineLength = getLineLength(),
+                dpToPx = dpToPx,
+                properties = boxProperties
+            )
+        }
     }
 
-    if (travellingBox !is NumberBox.EmptyBox
-        && targetPosition.isValidPosition(lineLength)
-    ) {
-        println("IN Travelling box: $travellingBox")
-        TravellingBoxAnimatedValues(
-            boardDimensionValues = boardOffsetValues,
-            lineLength = lineLength,
-            targetPosition = targetPosition,
-            scopeProvider = scopeProvider,
-        ).let { animatedValues ->
-            BoxWithConstraints(
-                modifier = Modifier
-                    .fillMaxWidth(boxRelativeSize)
-                    .aspectRatio(1f)
-                    .offset (
-                        x = offset.x,
-                        y = offset.y,
+    //Animations
+    val animationMap = getAnimatedValuesMap(
+        getTravellingBox = getTravellingBox
+    )
+
+
+    if (getTravellingBox() != null) {
+        val shadowColor = Theme.colors.secondary
+        BoxWithConstraints(
+            modifier = Modifier
+                .fillMaxWidth(boxProperties.getSize())
+                .aspectRatio(1f)
+                .offset {
+                    IntOffset(
+                        x = boxProperties.getOffsetX(containerWidthInPx).toInt(),
+                        y = boxProperties.getOffsetY(containerWidthInPx).toInt(),
                     )
-                    .graphicsLayer {
-                        transformOrigin = TransformOrigin(0f, 0f)
-                        (animatedValues[TRAVELBOX_ANIMATED_OFFSET]?.value as Offset?)
-                            ?.let{ offset ->
-                                translationX = offset.x
-                                translationY = offset.y
-                            }
-                        (animatedValues[TRAVELBOX_ANIMATED_SIZE]?.value as Float?)
-                            ?.let { animatedSize ->
-                                scaleX = animatedSize
-                                scaleY = animatedSize
-                            }
-                    }
-            ) {
-                TravellingShadow(
-                    shadowShape = when (travellingBox) {
-                        is NumberBox.BlockBox -> Theme.shapes.softBlockShape
-                        is NumberBox.RegularBox -> Theme.shapes.regularShape
-                        else -> Theme.shapes.roundShape
-                    },
-                    elevation = (animatedValues[SHADOW_ANIMATED_ELEVATION]?.value as Float?),
-                    offset = (animatedValues[SHADOW_ANIMATED_OFFSET]?.value as Offset?),
-                )
-                UINumberBox(
-                    getNumberBox = getTravellingBox,
-                    boxSize = maxWidth,
-                    applyStarAnimation = applyStarAnimation,
-                )
-            }
+                }
+                .graphicsLayer {
+                    animateProperties(
+                        position = getTravellingBox()?.targetPosition,
+                        targetSizeDiff = boardDimensions.getTargetSizeDiff(),
+                        getTargetOffset = boardDimensions::getTargetOffset,
+                        animatedTravel = animationMap[ANIMATED_TRAVEL]?.value ?: 0f,
+                        animatedElevation = animationMap[ANIMATED_ELEVATION]?.value ?: 0f,
+                    )
+                    transformOrigin = TransformOrigin(0f, 0f)
+                }
+                .drawBehind {
+                    drawTravellingShadow(
+                        circularShadow = getTravellingBox()?.content is NumberBox.StarBox,
+                        position = getTravellingBox()?.targetPosition,
+                        targetSizeDiff = boardDimensions.getTargetSizeDiff(),
+                        getShadowOffset = boardDimensions::getShadowOffset,
+                        shadowColor = shadowColor,
+                        animatedTravel = animationMap[ANIMATED_TRAVEL]?.value ?: 0f,
+                        animatedElevation = animationMap[ANIMATED_ELEVATION]?.value ?: 0f,
+                    )
+                }
+        ) {
+            UINumberBox(
+                getNumberBox = { getTravellingBox()?.content ?: NumberBox.EmptyBox() },
+                boxSize = maxWidth,
+                applyStarAnimation = applyStarAnimation,
+            )
         }
     }
 }
 
 @Composable
-private fun TravellingShadow(
-    shadowShape: Shape,
-    elevation: Float?,
-    offset: Offset?,
-){
-    val shadowColor = Theme.colors.secondary
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .graphicsLayer{
-                transformOrigin = TransformOrigin(0f, 0f)
-                elevation?.let { elevation ->
-                    //Size
-                    scaleX = 0.8f + elevation * 0.4f
-                    scaleY = 0.8f + elevation * 0.4f
+private fun getAnimatedValuesMap(
+    getTravellingBox: () -> TravellingBox?
+): Map<Int, Animatable<Float, AnimationVector1D>>{
+    val totalDuration = remember { (TRAVEL_ACTION_DELAY).toInt() }
+    val animatedTravel = remember {
+        Animatable(
+            initialValue = 0f
+        )
+    }
+    val animatedElevation = remember {
+        Animatable(
+            initialValue = 0f
+        )
+    }
+    LaunchedEffect(getTravellingBox()){
+        if(getTravellingBox() != null){
+            launch{
+                animatedTravel.snapTo(
+                    targetValue = 0f
+                )
+                animatedTravel.animateTo(
+                    targetValue = 1f,
+                    animationSpec = tween(
+                        durationMillis = totalDuration,
+                        easing = EaseInOutCubic
+                    )
+                )
+            }
+            launch{
+                animatedElevation.snapTo(
+                    targetValue = 0f
+                )
+                animatedElevation.animateTo(
+                    targetValue = 1f,
+                    animationSpec = tween(
+                        durationMillis = totalDuration * 2 / 5,
+                    )
+                )
+                animatedElevation.animateTo(
+                    targetValue = 0f,
+                    animationSpec = tween(
+                        durationMillis = totalDuration * 3 / 5,
+                    )
+                )
+            }
+        }
+    }
+    return mapOf(
+        ANIMATED_TRAVEL to animatedTravel,
+        ANIMATED_ELEVATION to animatedElevation
+    )
+}
 
-                    //Offset
-                    offset?.let{ offset ->
-                        translationX = offset.x * elevation * 0.2f
-                        translationY = offset.y * elevation * 0.2f
+private fun DrawScope.drawTravellingShadow(
+    circularShadow: Boolean,
+    position: BoardPosition?,
+    targetSizeDiff: Float,
+    getShadowOffset: (BoardPosition, Float, Float) -> Offset,
+    shadowColor: Color,
+    animatedTravel: Float,
+    animatedElevation: Float,
+) {
+    if (position == null) return
+    shadowColor.withAlpha(0.3f - (animatedElevation * 0.2f)).let { color ->
+        getShadowOffset(position, animatedTravel, animatedElevation).let { (x, y) ->
+            translate(
+                left = x,
+                top = y
+            ) {
+                scale(0.8f + animatedTravel * targetSizeDiff * animatedElevation) {
+                    if (circularShadow) {
+                        drawCircle(
+                            color = color,
+                        )
+                    } else {
+                        drawRoundRect(
+                            color = color,
+                            cornerRadius = CornerRadius(14f, 14f)
+                        )
                     }
-
-                    //Alpha
-                    alpha = 0.5f - elevation * 0.3f
                 }
             }
-            .padding(1.dp)
-            .background(
-                color = shadowColor,
-                shape = shadowShape
-            )
-    )
+        }
+    }
 }
 
-@Composable
-private fun TravellingBoxAnimatedValues(
-    boardDimensionValues: BoardDimensionValues,
-    lineLength: Int,
-    targetPosition: BoardPosition,
-    scopeProvider: () -> CoroutineScope,
-): Map<Int, Animatable<*, *>> {
-    //Size values
-    val targetSize = boardDimensionValues.targetSize
-    val middleSize = targetSize * TRAVELLING_ZOOM
-    val sizeAnimation = Animatable(
-        initialValue = 1f,
-    )
-
-    //Elevation values
-    val elevationAnimation = Animatable(
-        initialValue = 0f,
-    )
-
-    //Box offset values
-    val initialBoxOffset = Offset.Zero
-    val targetBoxOffset = targetPosition.let { position ->
-        Offset(
-            x = (boardDimensionValues.getOffsetXFromColumn(position.column)).toPx(),
-            y = (boardDimensionValues.getOffsetYFromRow(position.row)).toPx(),
-        )
+private fun GraphicsLayerScope.animateProperties(
+    position: BoardPosition?,
+    targetSizeDiff: Float,
+    getTargetOffset: (BoardPosition) -> Offset,
+    animatedTravel: Float,
+    animatedElevation: Float,
+) {
+    if (position == null) return
+    (1f + animatedTravel * targetSizeDiff + animatedElevation * 0.7f).let { size ->
+        scaleX = size
+        scaleY = size
     }
-    val boxOffsetAnimation = Animatable(
-        initialValue = initialBoxOffset,
-        typeConverter = Offset.VectorConverter
-    )
-
-    //Shadow offset values
-    val initialShadowOffset = Offset(
-        x = boardDimensionValues.getCenterOffsetX(lineLength).toPx() * -1,
-        y = boardDimensionValues.getCenterOffsetY().toPx() * -1,
-    )
-    val targetShadowOffset = Offset(
-        x = targetBoxOffset.x + initialShadowOffset.x,
-        y = targetBoxOffset.y + initialShadowOffset.y,
-    )
-    val shadowOffsetAnimation = Animatable(
-        initialValue = initialShadowOffset,
-        typeConverter = Offset.VectorConverter,
-    )
-
-    val totalDuration = remember {TRAVEL_ACTION_DELAY.toInt()}
-
-    val fullAnimationSpec: AnimationSpec<Offset> = remember {
-        tween(
-            durationMillis = totalDuration,
-            easing = EaseInOut,
-        )
+    getTargetOffset(position).let { (x, y) ->
+        translationX = x * animatedTravel
+        translationY = y * animatedTravel
     }
-    val firstPhaseSpec: AnimationSpec<Float> = remember {
-        tween(
-            durationMillis = totalDuration * 2 / 5,
-            easing = Ease,
-        )
-    }
-    val secondPhaseSpec: AnimationSpec<Float> = remember {
-        tween(
-            durationMillis = totalDuration * 3 / 5,
-            easing = Ease,
-        )
-    }
-
-    //Animate values
-    scopeProvider().launch {
-        boxOffsetAnimation.animateTo(
-            targetValue = targetBoxOffset,
-            animationSpec = fullAnimationSpec
-        )
-    }
-    scopeProvider().launch {
-        sizeAnimation.animateTo(
-            targetValue = middleSize,
-            animationSpec = firstPhaseSpec
-        )
-        sizeAnimation.animateTo(
-            targetValue = targetSize,
-            animationSpec = secondPhaseSpec
-        )
-    }
-    scopeProvider().launch {
-        elevationAnimation.animateTo(
-            targetValue = 1f,
-            animationSpec = firstPhaseSpec
-        )
-        elevationAnimation.animateTo(
-            targetValue = 0f,
-            animationSpec = secondPhaseSpec
-        )
-    }
-    scopeProvider().launch {
-        shadowOffsetAnimation.animateTo(
-            targetValue = targetShadowOffset,
-            animationSpec = fullAnimationSpec
-        )
-    }
-
-    return mapOf(
-        TRAVELBOX_ANIMATED_OFFSET to boxOffsetAnimation,
-        TRAVELBOX_ANIMATED_SIZE to sizeAnimation,
-        SHADOW_ANIMATED_ELEVATION to elevationAnimation,
-        SHADOW_ANIMATED_OFFSET to shadowOffsetAnimation,
-    )
 }
 
-private fun calculateBoardDimensionValues(
-    containerWidth: Dp,
-    lineLength: Int,
-    boxRelativeSize: Float,
-): BoardDimensionValues{
-    val boardSide = (containerWidth + CONTAINER_PADDING.dp * 2) / 0.36f
-    val boardMargin = boardSide * 0.1f
-    val boardBoxSize = boardSide * 0.8f / lineLength
-    val targetSize = boardBoxSize / containerWidth / boxRelativeSize
+@Stable
+data class TravellingBox(
+    val content: NumberBox,
+    val targetPosition: BoardPosition,
+)
 
-    val targetTranslationX = boardMargin - containerWidth * ( 1 / 8f + 1 - boxRelativeSize) - 10.dp
-    //1/8f = Queue container margin
-    //10.dp = PADDING (7.dp) + MEDIUM_BORDER (3.dp)
+data class BoardLayoutValues(
+    private val containerWidth: Float,
+    private val lineLength: Int,
+    private val dpToPx: Float,
+    private val properties: QueueBoxProperties,
+) {
+    private val boardBoxSize = (1f / 0.395f) / lineLength
+    private val boardTopLeftOffsetX = (containerWidth + 10 * dpToPx) * (1f / 3.6f - 1f / 8f)
+    private val boardTopLeftOffsetY = (containerWidth + 10 * dpToPx) * (1f / 3.6f + 1f / 0.8f)
+    private val centerLightOffsetX = (boardTopLeftOffsetX / 0.88f)
+    private val centerLightOffsetY = (boardTopLeftOffsetY / 0.88f)
 
-    val targetTranslationY = boardMargin + containerWidth * boxRelativeSize + 22.dp
-    //22.dp = (PADDING (7.dp) + MEDIUM_BORDER (3.dp) + 1.dp) * 2
-
-    return BoardDimensionValues(
-        targetSize = targetSize,
-        xZero = targetTranslationX,
-        yZero = targetTranslationY,
-        boardBoxSize = boardBoxSize,
+    fun getTargetSizeDiff(): Float = (boardBoxSize / properties.getSize()) - 1f
+    fun getTargetOffset(position: BoardPosition): Offset = Offset(
+        x = boardTopLeftOffsetX.toPosition(position.column) - properties.getOffsetX(containerWidth) - (7 * dpToPx),
+        y = boardTopLeftOffsetY.toPosition(position.row) - properties.getOffsetY(containerWidth) + (11 * dpToPx)
     )
-}
 
-//TODO Abstraer estos calculos a GameScreen OR UICommons, con las constantes de medidas
-private data class BoardDimensionValues(
-    val targetSize: Float,
-    private val xZero: Dp,
-    private val yZero: Dp,
-    private val boardBoxSize: Dp,
-){
-    fun getOffsetXFromColumn(column: Int): Dp = xZero + (boardBoxSize * column)
-    fun getOffsetYFromRow(row: Int): Dp = yZero + (boardBoxSize * row)
-    //Light source (Top left-center of board)
-    fun getCenterOffsetX(lineLength: Int) = xZero + (boardBoxSize * (lineLength - 1).toFloat() / 2)
-    fun getCenterOffsetY() = yZero
+    fun getShadowOffset(position: BoardPosition, travel: Float, elevation: Float): Offset = Offset(
+        x = (travel * boardTopLeftOffsetX.toPosition(position.column) - centerLightOffsetX) * (elevation * 0.3f),
+        y = (travel * boardTopLeftOffsetY.toPosition(position.row) - centerLightOffsetY) * (elevation * 0.3f)
+    )
+
+    private fun Float.toPosition(position: Int) = this + (containerWidth * boardBoxSize * position)
 }

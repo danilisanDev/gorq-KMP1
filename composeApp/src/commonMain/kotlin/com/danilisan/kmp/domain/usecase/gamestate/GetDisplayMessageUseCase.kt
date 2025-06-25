@@ -32,8 +32,6 @@ class GetDisplayMessageUseCase(
                 res = Res.string.displayMsgNoMoves,
                 highlightColor = DISPLAY_TEXT_SECONDARY,
                 bgColor = DISPLAY_TEXT_ERROR,
-                weight = FontWeight.SemiBold,
-                sizeDiff = 2,
             )
             BoardState.BINGO -> DisplayMessage(
                 res = Res.string.displayMsgBingo,
@@ -46,8 +44,6 @@ class GetDisplayMessageUseCase(
                 res = Res.string.displayMsgGameOver,
                 highlightColor = DISPLAY_TEXT_PRIMARY,
                 bgColor = DISPLAY_TEXT_SECONDARY,
-                weight = FontWeight.Bold,
-                sizeDiff = 1,
             )
             BoardState.READY -> if (selectedNumbers.isNotEmpty()) {
                 DisplayMessage(

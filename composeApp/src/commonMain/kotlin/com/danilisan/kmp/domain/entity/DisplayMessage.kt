@@ -4,6 +4,10 @@ import androidx.compose.ui.text.font.FontWeight
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.Resource
 
+/**
+ * Bundle of properties to represent a message on Display.
+ */
+
 class DisplayMessage(
     val res: Resource? = null,
     val arg: String = "",
@@ -13,6 +17,9 @@ class DisplayMessage(
     val highlightColor: Int = 1,
     val icon: DrawableResource? = null,
 ){
+    fun argWithOrOperator(orOperator: String) = arg.replace("#", orOperator)
+
+    //Color constants
     companion object{
         const val DISPLAY_TEXT_PRIMARY = 0
         const val DISPLAY_TEXT_SECONDARY = 1

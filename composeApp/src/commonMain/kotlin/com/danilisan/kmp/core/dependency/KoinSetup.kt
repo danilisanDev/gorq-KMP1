@@ -1,6 +1,6 @@
 package com.danilisan.kmp.core.dependency
 
-import com.danilisan.kmp.data.di.dataModule
+import com.danilisan.kmp.data.dependency.dataModule
 import com.danilisan.kmp.domain.dependency.domainModule
 import com.danilisan.kmp.ui.dependency.uiModule
 import org.koin.core.context.startKoin

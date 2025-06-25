@@ -13,14 +13,12 @@ data class GameStateUiState (
     val score: Score = Score(),
     //UI exclusive fields
     val boardState: BoardState = BoardState.READY,
+    val updatingPositions: List<BoardPosition?> = emptyList(),
     val availableLines: Set<Int> = emptySet(),
     val displayMessage: DisplayMessage = DisplayMessage(),
     //Box selection
     val selectedPositions: List<BoardPosition> = emptyList(),
     val incompleteSelection: Boolean = false,
-    val updatingPositions: List<BoardPosition> = emptyList(),
-    val travellingBox: NumberBox = NumberBox.EmptyBox(), //TODO Eliminar??
-    val targetPositionFromQueue: BoardPosition = BoardPosition(), //TODO Eliminar??
     //Line drag
     val linedPositions: List<BoardPosition?> = emptyList(),
     val completedLines: List<Int> = emptyList(),

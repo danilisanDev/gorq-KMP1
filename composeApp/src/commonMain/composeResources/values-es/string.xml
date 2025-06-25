@@ -1,14 +1,48 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <resources>
-    <!-- <string name="reloadBtn">Recargar \n%1$s (x%2$d)</string>
-    <string name="boardTag">tablero</string>
-    <string name="queueTag">reserva</string>
-    <string name="trillion">B</string>
+    <!-- GameModes -->
+    <string name="easyAddMode">Modo clásico</string>
+    <string name="multiplyMode">Modo múltiplos</string>
+    <string name="jumboAddMode">Jumbo Classic</string>
+    <string name="timeTrialMode">Contra reloj</string>
+    <string name="blindMode">Bloques ciegos</string>
+    <string name="voidMode">Cero absoluto</string>
+    <string name="zenMode">Modo zen</string>
+
+    <!-- Tags -->
+    <string name="bingoTag">Bingo</string>
+    <string name="colon">:</string>
+
+    <!-- Menu bar-->
+    <string name="btnNewGame">Nueva partida</string>
+    <string name="btnContinue">Continuar</string>
+    <string name="btnRanking">Clasificaciones</string>
+    <string name="recordTag">Récord: </string>
+
+    <!-- Score Display-->
+    <string name="trillion">T</string>
     <string name="thousandSeparator">.</string>
     <string name="score">Puntos</string>
     <string name="lines">Líneas</string>
     <string name="turns">Turnos</string>
-    <string name="displayMsgEasyMode">Suma números hasta 7 o 17</string>
-    <string name="displayMsgHardMode">Forma un múltiplo de 7 o 17</string>
-    -->
+
+    <!-- Reload Button text -->
+    <string name="gameOverButton">REINTENTAR</string>
+    <string name="bingoButton">¡Púlsame!</string>
+    <string name="reloadMultiplierButton">x</string>
+
+    <!-- Display Messages-->
+    <string name="displayMsgAddNumbers">Suma %1$s</string>
+    <string name="displayMsgMultiplyNumbers">Haz múltiplos de %1$s</string>
+    <string name="displayMsgNoMoves">- BLOQUEADO -</string>
+    <string name="displayMsgBingo">Perfecto :D</string>
+    <string name="displayMsgGameOver">··· FIN ···</string>
+    <string name="displayMsgAddPoints">+ %1$s puntos !</string>
+    <string name="displayMsgAddReloads">+ %1$s </string>
+    <plurals name="displayMsgNewLines">
+        <item quantity="zero">Ninguna línea</item>
+        <item quantity="one">%1$d línea</item>
+        <item quantity="other">%1$d líneas</item>
+    </plurals>
+    <string name="displayMsgOrOperator"> ó </string>
 </resources>

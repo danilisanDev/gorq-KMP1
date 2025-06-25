@@ -10,7 +10,6 @@ import org.koin.dsl.module
 val domainModule = module{
     //Common Usecases
     factoryOf(::GetCurrentDateTimeUseCase)
-    factoryOf(::GetFromRepositoryUseCase)
 
     //Gamestate actions
     singleOf(::GameStateActionManager)
@@ -25,8 +24,9 @@ val domainModule = module{
     //Gamestate Usecases
     factoryOf(::GetSavedGameStateUseCase)
     factoryOf(::SaveGameStateUseCase)
+    factoryOf(::GetLocalMaxScoreUseCase)
+    factoryOf(::SaveLocalMaxScoreUseCase)
     factoryOf(::GetNumberPoolUseCase)
-    factoryOf(::ExcludeFromPoolUseCase)
     factoryOf(::CountStarsOnBoardUseCase)
     factoryOf(::GetWinningLinesUseCase)
     factoryOf(::IsBingoPossibleUseCase)

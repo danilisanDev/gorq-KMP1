@@ -7,6 +7,13 @@ import com.danilisan.kmp.ui.state.GameStateUiState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 
+/**
+ * LINE-START -> LINE_DRAG -> **LINE_END**
+ * Action for the ending/cancelling of drag gesture on the Board (after LineDragAction).
+ * @param param (expected none)
+ * If there isn't any completed line, empty linedPositions;
+ * else, update board (UpdateGameAction -> AFTER_LINE)
+ */
 class LineEndAction(
     override val dispatcher: DispatcherProvider,
     private val selectBoxAction: SelectBoxAction,

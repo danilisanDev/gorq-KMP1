@@ -6,7 +6,6 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class MaxScoreModel (
-    val mode: Int = 0,
     val score: ScoreModel,
     val date: LocalDateTime? = null,
 )

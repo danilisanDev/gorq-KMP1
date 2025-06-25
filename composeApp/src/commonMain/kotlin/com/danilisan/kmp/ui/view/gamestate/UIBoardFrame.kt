@@ -11,6 +11,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -118,7 +119,8 @@ enum class IndicatorState (
  * Class that encloses the values
  * that shall be drawn for each indicator
  */
-class IndicatorLight(
+@Stable
+private class IndicatorLight(
     val color: Color,
     val glow: Float,
 )

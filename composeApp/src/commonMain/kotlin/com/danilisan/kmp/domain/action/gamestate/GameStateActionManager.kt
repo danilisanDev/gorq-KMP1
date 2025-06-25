@@ -9,12 +9,14 @@ import com.danilisan.kmp.ui.state.GameStateUiState
 import io.github.aakira.napier.Napier
 
 /**
+ * UI -> VIEW-MODEL -> **ACTION-MANAGER** -> ACTION -> USE-CASE
+ * Intermediary between view-model ui-handlers and domain-actions.
  * RESPONSIBILITIES
- *  1. Model persistence (get & update gameStateModel)
+ *  1. GameState repository access.
  *  2. Full control over UI-GameState (delegated by viewModel)
  *  3. Update UI-GameMode state (delegated by viewModel)
  *  4. Hold GameMode rules
- *  5. Choose the proper Action for viewModel Handler
+ *  5. Choose the proper Action for viewModel Handler.
  */
 class GameStateActionManager(
     //Persistence useCases
@@ -73,26 +75,23 @@ class GameStateActionManager(
 
     suspend fun initialLoad(
         updateViewModelGameMode: suspend (GameModeState) -> Unit
-    ) = generateNewGame(
-        updateViewModelGameMode = updateViewModelGameMode
-    )
-
-    /* ACCESO A PERSISTENCIA
+    ){
         //Access to saved gameState by Settings
         getSavedGameStateUseCase()
             ?.let{ (savedGameMode, savedState) -> //<GameMode, GameStateUiState>
                 updateGameMode(
-                    newGameMode = gameMode,
+                    newGameMode = savedGameMode,
                     updateViewModelGameMode
                 )
                 loadGameStateFromModelAction(getStateMethod, updateStateMethod, gameMode,
                     params = savedState)
             }
             ?: run{ //If no game is saved -> new game
-                updateGameAction(getStateMethod, updateStateMethod, gameMode,
-                    params = UpdateGameAction.UpdateOptions.NEW_GAME)
+                generateNewGame(
+                    updateViewModelGameMode = updateViewModelGameMode
+                )
             }
-    */
+    }
 
     suspend fun pressReloadButton() =
         pressReloadButtonAction(getStateMethod, updateStateMethod, gameMode)
@@ -120,7 +119,7 @@ class GameStateActionManager(
 
     companion object {
         const val BASE_ACTION_DELAY = 300L
-        const val TRAVEL_ACTION_DELAY = BASE_ACTION_DELAY * 2
+        const val TRAVEL_ACTION_DELAY = BASE_ACTION_DELAY * 3
         const val UPDATE_BOARD_TOTAL_DELAY = BASE_ACTION_DELAY * 2
         const val SELECTION_DELAY = BASE_ACTION_DELAY * 3
     }

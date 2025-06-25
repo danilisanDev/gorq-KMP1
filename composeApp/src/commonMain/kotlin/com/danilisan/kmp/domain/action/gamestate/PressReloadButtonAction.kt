@@ -8,6 +8,16 @@ import com.danilisan.kmp.ui.state.GameStateUiState
 import com.danilisan.kmp.domain.action.gamestate.UpdateGameAction.UpdateOptions
 import kotlinx.coroutines.withContext
 
+/**
+ * Switch action that decides the UpdateOption to be performed depending on BoardState:
+ *  1. READY: Reload queue.
+ *  2. BLOCKED: Reload board.
+ *  3. BINGO: After bingo.
+ *  4. GAMEOVER: New game.
+ * @param params (expected none)
+ */
+
+
 class PressReloadButtonAction(
     override val dispatcher: DispatcherProvider,
     private val getDisplayMessageUseCase: GetDisplayMessageUseCase,
@@ -48,15 +58,13 @@ class PressReloadButtonAction(
         )
 
         //Invoke Action depending on BoardState
-        when(boardState){
-            BoardState.READY -> updateGameAction(getState, updateState, gameMode,
-                params = UpdateOptions.RELOAD_QUEUE)
-            BoardState.BLOCKED -> updateGameAction(getState, updateState, gameMode,
-                params = UpdateOptions.RELOAD_BOARD)
-            BoardState.BINGO -> updateGameAction(getState, updateState, gameMode,
-                params = UpdateOptions.AFTER_BINGO)
-            BoardState.GAMEOVER -> updateGameAction(getState, updateState, gameMode,
-                params = UpdateOptions.NEW_GAME)
-        }
+        updateGameAction(getState, updateState, gameMode,
+            params = when(boardState){
+                BoardState.READY -> UpdateOptions.RELOAD_QUEUE
+                BoardState.BLOCKED -> UpdateOptions.RELOAD_BOARD
+                BoardState.BINGO -> UpdateOptions.AFTER_BINGO
+                BoardState.GAMEOVER -> UpdateOptions.NEW_GAME
+            }
+        )
     }
 }

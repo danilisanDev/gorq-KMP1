@@ -27,7 +27,7 @@
     <string name="turns">Turns</string>
 
     <!-- Reload Button text -->
-    <string name="gameOverButton">NEW GAME</string>
+    <string name="gameOverButton">RETRY</string>
     <string name="bingoButton">Click me!</string>
     <string name="reloadMultiplierButton">x</string>
 
@@ -44,4 +44,5 @@
         <item quantity="one">%1$d line</item>
         <item quantity="other">%1$d lines</item>
     </plurals>
+    <string name="displayMsgOrOperator"> or </string>
 </resources>

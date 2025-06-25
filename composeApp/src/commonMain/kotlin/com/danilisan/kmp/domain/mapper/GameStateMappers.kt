@@ -9,6 +9,10 @@ import com.danilisan.kmp.domain.entity.Score
 import com.danilisan.kmp.domain.entity.NumberBox
 import com.danilisan.kmp.ui.state.GameStateUiState
 
+/**
+ * Functions for mapping GameState fields
+ * from Model to Domain/UI and viceversa.
+ */
 
 private const val NUMBER_TYPE_REGULAR = 0 //Default
 private const val NUMBER_TYPE_BLOCK = 1
@@ -17,7 +21,7 @@ private const val NUMBER_TYPE_SILVER_STAR = 3
 private const val INTERVAL_TYPE = 10
 
 //Extensions for mapping from Model to Domain/UI
-suspend fun GameStateModel.toUiState(): Pair<GameMode, GameStateUiState>{
+fun GameStateModel.toUiState(): Pair<GameMode, GameStateUiState>{
     val gameMode = this.gameMode.toUiGameMode()
     return Pair(
         gameMode,
@@ -39,8 +43,8 @@ private fun Int.toUiGameMode(): GameMode = try{
 private fun List<Int>.toUiBoard(boardSize: Int): Map<BoardPosition, NumberBox> =
     this.mapIndexed {index, value ->
         BoardPosition(
-            column = index % boardSize,
-            row = index / boardSize,
+            row = index % boardSize,
+            column = index / boardSize,
         ).let{ positionKey ->
             positionKey to value.toUiNumberBox()
         }
@@ -69,10 +73,11 @@ private fun Int.toUiNumberBox(): NumberBox =
         }
     }
 
-private fun ScoreModel.toUiScore(): Score = Score(
+fun ScoreModel.toUiScore(): Score = Score(
         points = this.points,
         lines = this.lines,
         turns = this.turns,
+        maxPoints = this.maxPoints
     )
 
 
@@ -102,14 +107,14 @@ private fun Map<BoardPosition, NumberBox>.toModelBoard(): List<Int> =
 
 private fun List<NumberBox>.toModelQueue(): List<Int> = this.map{ it.toModelBox() }
 
-private fun Score.toModelScore(): ScoreModel = ScoreModel(
+fun Score.toModelScore(): ScoreModel = ScoreModel(
     points = this.points,
     turns = this.turns,
     lines = this.lines,
+    maxPoints = this.maxPoints
 )
 
 private fun NumberBox.toModelBox(): Int{
-    //TODO There shouldn't be EmptyBox on board
     if(this is NumberBox.EmptyBox) return 0 //RegularBox value 0
 
     val boxValue = if(this is NumberBox.StarBox){

@@ -47,14 +47,14 @@ object Mocks {
 
 
     val titleBoard:Map<BoardPosition, NumberBox> = mapOf(
-        BoardPosition(0, 0) to NumberBox.EmptyBox(),
-        BoardPosition(0, 1) to NumberBox.RegularBox(0),
+        BoardPosition(0, 0) to NumberBox.RegularBox(103),
+        BoardPosition(0, 1) to NumberBox.SilverStarBox(),
         BoardPosition(0, 2) to NumberBox.EmptyBox(),
-        BoardPosition(1, 0) to NumberBox.RegularBox(1),
-        BoardPosition(1, 1) to NumberBox.GoldenStarBox(),
-        BoardPosition(1, 2) to NumberBox.RegularBox(7),
+        BoardPosition(1, 0) to NumberBox.EmptyBox(),
+        BoardPosition(1, 1) to NumberBox.RegularBox(111),
+        BoardPosition(1, 2) to NumberBox.EmptyBox(),
         BoardPosition(2, 0) to NumberBox.EmptyBox(),
-        BoardPosition(2, 1) to NumberBox.RegularBox(7),
+        BoardPosition(2, 1) to NumberBox.RegularBox(113),
         BoardPosition(2, 2) to NumberBox.EmptyBox(),
     )
 

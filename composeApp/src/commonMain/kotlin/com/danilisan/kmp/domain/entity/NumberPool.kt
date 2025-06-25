@@ -2,18 +2,29 @@ package com.danilisan.kmp.domain.entity
 
 import kotlin.random.Random
 
+/**
+ * Represents a list of numbers available
+ * to be included as new values
+ * for NumberBoxes on Board or Queue
+ */
+
 data class NumberPool(
     private val commonPool: MutableList<Int>,
 ) {
-    suspend fun getCommonPool(): List<Int> {
+    fun getCommonPool(): List<Int> {
         return commonPool
     }
 
-    suspend fun excludeFromPool(number: Int) {
+    fun removeFromPool(number: Int) {
         commonPool.remove(number)
     }
 
-    suspend fun areMoreEvenNumbers(): Boolean =
+    /**
+     * Returns true if there are more even numbers than odd numbers in the pool;
+     * returns false if there are more odd numbers;
+     * returns random boolean in case of equal proportion.
+     */
+    fun areMoreEvenNumbers(): Boolean =
         (commonPool.count { it % 2 == 0 } * 2)
             .let { evenProportion ->
                 if (evenProportion == commonPool.size) {
@@ -23,7 +34,12 @@ data class NumberPool(
                 }
             }
 
-    suspend fun getPartialPool(
+    /**
+     * Returns the pool, but filtered by parity, and excluded numbers.
+     * @param parityEven true -> get even numbers; false -> get odd numbers.
+     * @param excludedNumbers numbers to be excluded from the pool.
+     */
+    fun getPartialPool(
         parityEven: Boolean,
         excludedNumbers: Set<Int> = emptySet(),
     ): List<Int> {
@@ -33,6 +49,5 @@ data class NumberPool(
         return availablePool.filter { it % 2 == parity }
             .takeUnless { it.isEmpty() }
             ?: availablePool
-
     }
 }

@@ -2,274 +2,56 @@ package com.danilisan.kmp.domain.action.gamestate
 
 import androidx.compose.ui.text.font.FontWeight
 import com.danilisan.kmp.core.provider.DispatcherProvider
-import com.danilisan.kmp.domain.action.gamestate.GameStateActionManager.Companion.BASE_ACTION_DELAY
 import com.danilisan.kmp.domain.action.gamestate.GameStateActionManager.Companion.UPDATE_BOARD_TOTAL_DELAY
 import com.danilisan.kmp.domain.action.gamestate.GameStateActionManager.Companion.TRAVEL_ACTION_DELAY
 import com.danilisan.kmp.domain.entity.BoardHelper.getEmptyPositionsSortedDiagonally
 import com.danilisan.kmp.domain.entity.BoardPosition
 import com.danilisan.kmp.domain.entity.DisplayMessage
+import com.danilisan.kmp.domain.entity.DisplayMessage.Companion.DISPLAY_TEXT_SECONDARY
+import com.danilisan.kmp.domain.entity.DisplayMessage.Companion.DISPLAY_TEXT_SELECTED
+import com.danilisan.kmp.domain.entity.DisplayMessage.Companion.DISPLAY_TEXT_SUCCESS
 import com.danilisan.kmp.domain.entity.GameMode
 import com.danilisan.kmp.domain.entity.NumberBox
 import com.danilisan.kmp.domain.entity.Score
-import com.danilisan.kmp.domain.usecase.gamestate.AddBoxOnBoardUseCase
-import com.danilisan.kmp.domain.usecase.gamestate.AddBoxOnQueueUseCase
 import com.danilisan.kmp.domain.usecase.gamestate.CreateEmptyBoardUseCase
+import com.danilisan.kmp.domain.usecase.gamestate.GetLocalMaxScoreUseCase
 import com.danilisan.kmp.domain.usecase.gamestate.GetPoolAndParityUseCase
 import com.danilisan.kmp.domain.usecase.gamestate.SaveGameStateUseCase
+import com.danilisan.kmp.domain.usecase.gamestate.SaveLocalMaxScoreUseCase
 import com.danilisan.kmp.domain.usecase.gamestate.UpdateBoardValuesUseCase
 import com.danilisan.kmp.domain.usecase.gamestate.UpdateQueueToBoardValuesUseCase
 import com.danilisan.kmp.domain.usecase.gamestate.UpdateQueueValuesUseCase
-import com.danilisan.kmp.ui.state.BoardState
 import com.danilisan.kmp.ui.state.GameStateUiState
 import kotlinproject.composeapp.generated.resources.Res
 import kotlinproject.composeapp.generated.resources.displayMsgAddPoints
 import kotlinproject.composeapp.generated.resources.displayMsgAddReloads
 import kotlinproject.composeapp.generated.resources.refresh
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+/**
+ * Action responsible of updating board and/or queue depending of the source action (UpdateOption);
+ * the updated data is persisted on data layer and exposed to UI-state.
+ * @param params (expected UpdateOptions)
+ * 1. NEW GAME: From menu or Reload Button while BoardState.GAMEOVER
+ * 2. RELOAD_QUEUE: Reload Button while BoardState.READY
+ * 3. RELOAD_BOARD: Reload Button while BoardState.BLOCKED.
+ * 4. AFTER_SELECTION: SelectAction when win condition is fulfilled.
+ * 5. AFTER_LINE: LineEndAction when completedLines.size > 0.
+ * 6. AFTER_BINGO: Reload Button while BoardState.BINGO.
+ */
 class UpdateGameAction(
     override val dispatcher: DispatcherProvider,
+    private val saveGameStateUseCase: SaveGameStateUseCase,
+    private val getLocalMaxScoreUseCase: GetLocalMaxScoreUseCase,
+    private val saveLocalMaxScoreUseCase: SaveLocalMaxScoreUseCase,
     private val getPoolAndParityUseCase: GetPoolAndParityUseCase,
     private val updateBoardValuesUseCase: UpdateBoardValuesUseCase,
     private val updateQueueValuesUseCase: UpdateQueueValuesUseCase,
     private val updateQueueToBoardValuesUseCase: UpdateQueueToBoardValuesUseCase,
-    private val saveGameStateUseCase: SaveGameStateUseCase,
     private val createEmptyBoardUseCase: CreateEmptyBoardUseCase,
-    private val addBoxOnBoardUseCase: AddBoxOnBoardUseCase,
-    private val addBoxOnQueueUseCase: AddBoxOnQueueUseCase,
     private val checkBoardStateAction: CheckBoardStateAction,
 ) : GameStateAction {
-    override suspend operator fun invoke(
-        getState: suspend () -> GameStateUiState,
-        updateState: suspend (GameStateUiState) -> Unit,
-        gameMode: GameMode,
-        params: Any?,
-    ): Boolean = withContext(dispatcher.default) {
-        //Check expected params type (UpdateOptions)
-        val option = if (params is UpdateOptions){
-            params
-        }else{
-            return@withContext false
-        }
-
-        //Save state fields needed for updates
-        var updatingBoard = getState().board
-        var updatingQueue = getState().queue
-        var scoreIncrement: Score? = null
-        var reloadsIncrement: Int? = null
-
-        val newPositions = when (option) {
-            UpdateOptions.AFTER_SELECTION -> getState().selectedPositions
-            UpdateOptions.AFTER_LINE -> {
-                getState().linedPositions.filterNotNull()
-                    .run{
-                        val completedPositions = 1 + (getState().completedLines.size * (gameMode.lineLength - 1))
-                        if(completedPositions > size){
-                            emptyList() //Impossible case
-                        }else{
-                            subList(0, completedPositions).distinct()
-                        }
-                    }
-            }
-            else -> createEmptyBoardUseCase(gameMode.lineLength).getEmptyPositionsSortedDiagonally()
-        }
-
-        //Update values
-        if (option == UpdateOptions.AFTER_SELECTION) {
-            val selectedValues = newPositions.mapNotNull{
-                updatingBoard[it]?.value
-            }
-            getPoolAndParityUseCase(
-                numberSet = gameMode.blockNumbers,
-                otherNumbers = selectedValues,
-                newValuesLength = selectedValues.size,
-            ).let { (pool, parity) ->
-                //Update score
-                scoreIncrement = Score(
-                    points = gameMode.getWinConditionPoints(selectedValues),
-                    turns = 1,
-                )
-                //Update board AND queue
-                updateQueueToBoardValuesUseCase(
-                    queuePool = pool,
-                    parityOrderList = parity,
-                    board = updatingBoard,
-                    queue = updatingQueue,
-                    score = getState().score + scoreIncrement,
-                    gameMode = gameMode,
-                    selectedPositions = newPositions
-                ).let { (newBoard, newQueue) ->
-                    updatingBoard = newBoard
-                    updatingQueue = newQueue
-                }
-
-            }
-        } else {
-            getPoolAndParityUseCase(
-                numberSet = gameMode.regularNumbers,
-                repetitions = gameMode.numberRepetitions,
-                otherNumbers = when (option) {
-                    UpdateOptions.RELOAD_QUEUE -> updatingBoard.map { it.value.value }
-                    UpdateOptions.RELOAD_BOARD -> updatingQueue.map { it.value }
-                    UpdateOptions.AFTER_LINE -> (updatingQueue + updatingBoard.mapNotNull { (position, box) ->
-                        if (position !in newPositions) box else null
-                    }).map { box -> box.value }
-
-                    else -> emptyList()
-                },
-                newValuesLength = when (option) {
-                    UpdateOptions.RELOAD_QUEUE -> gameMode.queueSize
-                    UpdateOptions.RELOAD_BOARD -> gameMode.getBoardSize()
-                    UpdateOptions.AFTER_LINE -> newPositions.size
-                    else -> gameMode.queueSize + gameMode.getBoardSize()
-                }
-            ).let { (pool, parity) ->
-                //Update board
-                if (option.boardIsUpdating) {
-                    updateBoardValuesUseCase(
-                        currentPool = pool,
-                        parityOrderList = parity,
-                        board = updatingBoard,
-                        targetPositions = newPositions,
-                        gameMode = gameMode,
-                    ).let { updatingBoard = it }
-                }
-
-                //Update queue
-                if (option.queueIsUpdating) {
-                    updateQueueValuesUseCase(
-                        currentPool = pool,
-                        parityOrderList = parity,
-                        queue = updatingQueue,
-                        queueSize = gameMode.queueSize,
-                        isWithBlockBox = false,
-                    ).let { updatingQueue = it }
-                }
-
-                //Update score and reloads
-                if (option == UpdateOptions.AFTER_LINE) {
-                    getState().completedLines.size.let { lines ->
-                        scoreIncrement = gameMode.getScoreForLines(
-                            lines = lines
-                        )
-                        reloadsIncrement = gameMode.getReloadIncrementForLines(
-                            lines = lines
-                        )
-                    }
-                } else if (option == UpdateOptions.AFTER_BINGO) {
-                    scoreIncrement = gameMode.getScoreForBingo()
-                    reloadsIncrement = gameMode.getReloadIncrementForBingo()
-                }
-            }
-        }
-
-        //Clean current state
-        if(option == UpdateOptions.NEW_GAME){
-            //Create new clean gameState
-            GameStateUiState(
-                board = createEmptyBoardUseCase(gameMode.lineLength),
-                reloadsLeft = gameMode.initialReloads
-            ).let{ newGameState ->
-                //Update UI state
-                updateState(newGameState)
-            }
-        }else{
-            //Clean non-model action-related state fields
-            updateStateFields(getState, updateState,
-                boardState = BoardState.READY,
-                incompleteSelection = false,
-                linedPositions = emptyList(),
-                completedLines = emptyList(),
-            )
-        }
-
-        //Update model
-        saveGameStateUseCase(
-            gameModeId = gameMode.getModeId(),
-            board = updatingBoard,
-            queue = updatingQueue,
-            score = getState().score + scoreIncrement,
-            reloadsLeft = getState().reloadsLeft + (reloadsIncrement?: 0),
-        )
-
-        //TODO Reducir las llamadas a updateStateFields (maximo 2)
-        //Update UI
-        if(option.scoreIsUpdating){
-            launch{
-                val sizeDiff = scoreIncrement?.lines?.let{ lines ->
-                    if(lines > 0 ) lines - 1 else lines
-                }?: 0
-                updateStateFields(
-                    getState, updateState,
-                    scoreDifference = scoreIncrement,
-                    displayMessage = DisplayMessage(
-                        res = Res.string.displayMsgAddPoints,
-                        arg = scoreIncrement?.points.toString(),
-                        weight = FontWeight.SemiBold,
-                        sizeDiff = sizeDiff,
-                    ),
-                )
-                if(reloadsIncrement != null) {
-                    delay(UPDATE_BOARD_TOTAL_DELAY / 2)
-                    updateStateFields(getState, updateState,
-                        displayMessage = DisplayMessage(
-                            res = Res.string.displayMsgAddReloads,
-                            arg = reloadsIncrement.toString(),
-                            weight = FontWeight.SemiBold,
-                            sizeDiff = sizeDiff,
-                            icon = Res.drawable.refresh,
-                        ),
-                        reloadsDifference = reloadsIncrement
-                    )
-                }
-            }
-        }
-        if(option == UpdateOptions.AFTER_SELECTION){
-            updateUIQueueToBoard(
-                gameMode = gameMode,
-                updatedBoard = updatingBoard,
-                updatedQueue = updatingQueue,
-                selectedPositions = newPositions,
-                getState = getState,
-                updateState = updateState,
-            )
-            //Check board state
-            return@withContext checkBoardStateAction(getState, updateState, gameMode)
-        }else{
-            var updateBoardJob: Job? = null
-            var updateQueueJob: Job? = null
-
-            if(option.boardIsUpdating){
-                updateBoardJob = launch {
-                    updateUIBoard(
-                        updatedBoard = updatingBoard,
-                        targetPositions = newPositions,
-                        getState = getState,
-                        updateState = updateState,
-                    )
-                    //Check board state
-                    checkBoardStateAction(getState, updateState, gameMode)
-                }
-            }
-            if(option.queueIsUpdating){
-                updateQueueJob = launch{
-                    updateUIQueue(
-                        updatedQueue = updatingQueue,
-                        getState = getState,
-                        updateState = updateState,
-                    )
-                }
-            }
-
-            updateBoardJob?.join()
-            updateQueueJob?.join()
-
-            return@withContext true
-        }
-    }
 
     enum class UpdateOptions(
         val boardIsUpdating: Boolean,
@@ -284,84 +66,337 @@ class UpdateGameAction(
         AFTER_BINGO(true, true, true),
     }
 
-    private suspend fun updateUIBoard(
-        updatedBoard: Map<BoardPosition, NumberBox>,
-        targetPositions: List<BoardPosition>,
+    override suspend operator fun invoke(
         getState: suspend () -> GameStateUiState,
         updateState: suspend (GameStateUiState) -> Unit,
-    ) {
-        val intervalDelay = UPDATE_BOARD_TOTAL_DELAY / targetPositions.size * 2
-        for (targetPosition in targetPositions) {
-            //Replace a random regular box on target position
-            getState().board.let { currentBoard ->
-                updatedBoard[targetPosition]?.let { newBox ->
-                    addBoxOnBoardUseCase(
-                        newBox = newBox,
-                        targetPosition = targetPosition,
-                        board = currentBoard,
-                    ).let { boardWithNewRegularBox ->
-                        updateStateFields(
-                            getState, updateState,
-                            board = boardWithNewRegularBox
+        gameMode: GameMode,
+        params: Any?,
+    ): Boolean = withContext(dispatcher.default) {
+        //Check expected params type (UpdateOptions)
+        val option = if (params is UpdateOptions) {
+            params
+        } else {
+            return@withContext false
+        }
+
+        //Target state values.
+        var updatingBoard = getState().board
+        var updatingQueue = getState().queue
+        var scoreIncrement = Score()
+        var reloadsIncrement = 0
+        val newPositions = getNewPositions(
+            option = option,
+            lineLength = gameMode.lineLength,
+            getState = getState,
+        )
+
+        //Update values
+        updateValues(
+            option = option,
+            gameMode = gameMode,
+            getState = getState,
+            updateBoard = { newBoard -> updatingBoard = newBoard },
+            updateQueue = { newQueue -> updatingQueue = newQueue },
+            updateScoreIncrement = { newIncrement -> scoreIncrement = newIncrement },
+            updateReloadsIncrement = { newIncrement -> reloadsIncrement = newIncrement },
+            newPositions = newPositions,
+        )
+
+        //Update score
+        val newScore = updateLocalMaxScore(
+            gameModeId = gameMode.getModeId(),
+            formerScore = getState().score,
+            scoreIncrement = scoreIncrement
+        )
+
+        //Update model
+        saveGameStateUseCase(
+            gameModeId = gameMode.getModeId(),
+            board = updatingBoard,
+            queue = updatingQueue,
+            score = newScore,
+            reloadsLeft = getState().reloadsLeft + (reloadsIncrement),
+        )
+
+        //Update UI
+        if (option == UpdateOptions.NEW_GAME) {
+            GameStateUiState(
+                board = createEmptyBoardUseCase(gameMode.lineLength),
+                updatingPositions = newPositions,
+                score = Score(),
+                reloadsLeft = gameMode.initialReloads
+            ).let { newGameState ->
+                updateState(newGameState)
+            }
+        }
+
+        val sizeDiff = scoreIncrement.lines.let { lines ->
+            if (lines > 0) lines - 1 else lines
+        }
+
+        //TODO Los takeIf pueden no ser necesarios
+        updateStateFields(
+            getState, updateState,
+            board = updatingBoard.takeIf { option.boardIsUpdating },
+            queue = updatingQueue.takeIf { option.queueIsUpdating },
+            updatingPositions = (newPositions
+                .takeUnless { option == UpdateOptions.AFTER_SELECTION }
+                ?: (newPositions + null))
+                .takeIf { option.boardIsUpdating },
+            incompleteSelection = false,
+            selectedPositions = emptyList(),
+            linedPositions = emptyList(),
+            completedLines = emptyList(),
+            score = newScore,
+            displayMessage = DisplayMessage(
+                res = Res.string.displayMsgAddPoints,
+                arg = scoreIncrement.points.toString(),
+                weight = FontWeight.SemiBold,
+                highlightColor = if (option == UpdateOptions.AFTER_SELECTION) {
+                    DISPLAY_TEXT_SELECTED
+                } else if (option == UpdateOptions.AFTER_LINE) {
+                    DISPLAY_TEXT_SUCCESS
+                } else {
+                    DISPLAY_TEXT_SECONDARY
+                },
+                sizeDiff = sizeDiff,
+            ).takeIf { option.scoreIsUpdating },
+        )
+        if (reloadsIncrement != 0 && option.scoreIsUpdating) {
+            delay(UPDATE_BOARD_TOTAL_DELAY / 2)
+            updateStateFields(
+                getState, updateState,
+                displayMessage = DisplayMessage(
+                    res = Res.string.displayMsgAddReloads,
+                    arg = reloadsIncrement.toString(),
+                    weight = FontWeight.SemiBold,
+                    sizeDiff = sizeDiff,
+                    icon = Res.drawable.refresh,
+                ),
+                reloadsDifference = reloadsIncrement
+            )
+        }
+        delay(
+            if (option == UpdateOptions.AFTER_SELECTION) {
+                TRAVEL_ACTION_DELAY * (newPositions.size + 1)
+            } else {
+                UPDATE_BOARD_TOTAL_DELAY
+            }
+        )
+        return@withContext checkBoardStateAction(getState, updateState, gameMode)
+    }
+
+    /**
+     * Depending on UpdateOption,
+     * returns target value of updatingPositions field on GameState.
+     */
+    private suspend fun getNewPositions(
+        option: UpdateOptions,
+        lineLength: Int,
+        getState: suspend () -> GameStateUiState
+    ): List<BoardPosition> = when (option) {
+        UpdateOptions.AFTER_SELECTION -> getState().selectedPositions
+        UpdateOptions.AFTER_LINE -> {
+            getState().linedPositions.filterNotNull()
+                .run {
+                    val completedPositions =
+                        1 + (getState().completedLines.size * (lineLength - 1))
+                    if (completedPositions > size) {
+                        emptyList() //Impossible case
+                    } else {
+                        subList(0, completedPositions).distinct()
+                    }
+                }
+        }
+
+        else -> createEmptyBoardUseCase(lineLength).getEmptyPositionsSortedDiagonally()
+    }
+
+    /**
+     * Calculates target values for queue, board, scoreIncrement and reloadIncrement,
+     * depending on UpdateOption.
+     */
+    private suspend fun updateValues(
+        option: UpdateOptions,
+        gameMode: GameMode,
+        getState: suspend () -> GameStateUiState,
+        updateBoard: (Map<BoardPosition, NumberBox>) -> Unit,
+        updateQueue: (List<NumberBox>) -> Unit,
+        updateScoreIncrement: (Score) -> Unit,
+        updateReloadsIncrement: (Int) -> Unit,
+        newPositions: List<BoardPosition>,
+    ) = if (option == UpdateOptions.AFTER_SELECTION) {
+        updateValuesAfterSelection(
+            gameMode = gameMode,
+            getState = getState,
+            updateBoard = updateBoard,
+            updateQueue = updateQueue,
+            updateScoreIncrement = updateScoreIncrement,
+            newPositions = newPositions,
+        )
+    } else {
+        updateValuesDefault(
+            option = option,
+            gameMode = gameMode,
+            getState = getState,
+            updateBoard = updateBoard,
+            updateQueue = updateQueue,
+            updateScoreIncrement = updateScoreIncrement,
+            updateReloadsIncrement = updateReloadsIncrement,
+            newPositions = newPositions,
+        )
+    }
+
+    /**
+     * From a pool of numbers, excluding remaining values on Board/Queue,
+     * generate new values for Board and/or Queue;
+     * and Score and Reload increments, depending on UpdateOption.
+     */
+    private suspend fun updateValuesDefault(
+        option: UpdateOptions,
+        gameMode: GameMode,
+        getState: suspend () -> GameStateUiState,
+        updateBoard: (Map<BoardPosition, NumberBox>) -> Unit,
+        updateQueue: (List<NumberBox>) -> Unit,
+        updateScoreIncrement: (Score) -> Unit,
+        updateReloadsIncrement: (Int) -> Unit,
+        newPositions: List<BoardPosition>
+    ) =
+        getPoolAndParityUseCase(
+            numberSet = gameMode.regularNumbers,
+            repetitions = gameMode.numberRepetitions,
+            otherNumbers = when (option) {
+                UpdateOptions.RELOAD_QUEUE -> getState().board.map { it.value.value }
+                UpdateOptions.RELOAD_BOARD -> getState().queue.map { it.value }
+                UpdateOptions.AFTER_LINE -> (getState().queue + getState().board.mapNotNull { (position, box) ->
+                    if (position !in newPositions) box else null
+                }).map { box -> box.value }
+
+                else -> emptyList()
+            },
+            newValuesLength = when (option) {
+                UpdateOptions.RELOAD_QUEUE -> gameMode.queueSize
+                UpdateOptions.RELOAD_BOARD -> gameMode.getBoardSize()
+                UpdateOptions.AFTER_LINE -> newPositions.size
+                else -> gameMode.queueSize + gameMode.getBoardSize()
+            }
+        ).let { (pool, parity) ->
+            //Update board
+            if (option.boardIsUpdating) {
+                updateBoardValuesUseCase(
+                    currentPool = pool,
+                    parityOrderList = parity,
+                    board = getState().board,
+                    targetPositions = newPositions,
+                    gameMode = gameMode,
+                ).let { newBoard -> updateBoard(newBoard) }
+            }
+
+            //Update queue
+            if (option.queueIsUpdating) {
+                updateQueueValuesUseCase(
+                    currentPool = pool,
+                    parityOrderList = parity,
+                    queue = getState().queue,
+                    queueSize = gameMode.queueSize,
+                    isWithBlockBox = false,
+                ).let { newQueue -> updateQueue(newQueue) }
+            }
+
+            //Update score and reloads
+            when (option) {
+                UpdateOptions.AFTER_LINE -> {
+                    getState().completedLines.size.let { lines ->
+                        updateScoreIncrement(
+                            gameMode.getScoreForLines(
+                                lines = lines
+                            )
+                        )
+                        updateReloadsIncrement(
+                            gameMode.getReloadIncrementForLines(
+                                lines = lines
+                            )
                         )
                     }
                 }
+                UpdateOptions.AFTER_BINGO -> {
+                    updateScoreIncrement(
+                        gameMode.getScoreForBingo()
+                    )
+                    updateReloadsIncrement(gameMode.getReloadIncrementForBingo())
+                }
+                UpdateOptions.NEW_GAME -> {
+                    updateScoreIncrement(Score(points = -1L))
+                }
+                else -> { Unit }
             }
-            delay(intervalDelay)
         }
-        delay(UPDATE_BOARD_TOTAL_DELAY - intervalDelay)
-    }
 
-    private suspend fun updateUIQueue(
-        updatedQueue: List<NumberBox>,
-        getState: suspend () -> GameStateUiState,
-        updateState: suspend (GameStateUiState) -> Unit,
-    ) {
-        updateStateFields(getState, updateState,
-            queue = updatedQueue,
-        )
-    }
-
-    private suspend fun updateUIQueueToBoard(
-        updatedBoard: Map<BoardPosition, NumberBox>,
-        updatedQueue: List<NumberBox>,
-        selectedPositions: List<BoardPosition>,
+    /**
+     * From a pool of numbers, excluding values on Board and Queue,
+     * Queue boxes are moved to the Board, and new values are generated for the Queue;
+     * and calculate Score increment.
+     */
+    private suspend fun updateValuesAfterSelection(
         gameMode: GameMode,
         getState: suspend () -> GameStateUiState,
-        updateState: suspend (GameStateUiState) -> Unit,
+        updateBoard: (Map<BoardPosition, NumberBox>) -> Unit,
+        updateQueue: (List<NumberBox>) -> Unit,
+        updateScoreIncrement: (Score) -> Unit,
+        newPositions: List<BoardPosition>,
     ) {
-        selectedPositions.forEachIndexed { index, targetPosition ->
-            updatedBoard[targetPosition]?.let { newBox ->
-                //Add box on board
-                val newBoard = addBoxOnBoardUseCase(
-                    board = getState().board,
-                    targetPosition = targetPosition,
-                    newBox = newBox,
-                )
-                //Add box on queue
-                val updatedPosition = index + gameMode.queueSize - selectedPositions.size
-                val newQueue = addBoxOnQueueUseCase(
-                    currentQueue = getState().queue,
-                    newBox = updatedQueue[updatedPosition],
-                    queueSize = gameMode.queueSize
-                )
-                //Update UI (queue)
-                updateStateFields(
-                    getState, updateState,
-                    queue = newQueue,
-                    board = newBoard,
-                    selectedPositions = selectedPositions.drop(index + 1),
-                    travellingBox = newBox,
-                    targetPositionFromQueue = targetPosition,
-                )
-                delay(TRAVEL_ACTION_DELAY)
+        val selectedValues = getState().board.let { board ->
+            newPositions.mapNotNull { board[it]?.value }
+        }
+        getPoolAndParityUseCase(
+            numberSet = gameMode.blockNumbers,
+            otherNumbers = selectedValues,
+            newValuesLength = selectedValues.size,
+        ).let { (pool, parity) ->
+            //Calculate score increment
+            val scoreIncrement = Score(
+                points = gameMode.getWinConditionPoints(selectedValues),
+                turns = 1,
+            )
+            //Update board AND queue
+            updateQueueToBoardValuesUseCase(
+                queuePool = pool,
+                parityOrderList = parity,
+                board = getState().board,
+                queue = getState().queue,
+                score = getState().score + scoreIncrement,
+                gameMode = gameMode,
+                selectedPositions = newPositions
+            ).let { (newBoard, newQueue) ->
+                updateBoard(newBoard)
+                updateQueue(newQueue)
+                updateScoreIncrement(scoreIncrement)
             }
         }
-        //Update travelling box (Empty)
-        updateStateFields(
-            getState, updateState,
-            travellingBox = NumberBox.EmptyBox(),
-        )
-        delay(BASE_ACTION_DELAY)
     }
+
+    /**
+     * New score is calculated from former score plus score increment.
+     * If new score is higher than the one saved on data layer,
+     * the new high score is persisted and included in domain Score item.
+     */
+    private suspend fun updateLocalMaxScore(
+        gameModeId: Int,
+        formerScore: Score,
+        scoreIncrement: Score
+    ): Score =
+        (formerScore + scoreIncrement).apply{
+            if (points == 0L) {
+                maxPoints = getLocalMaxScoreUseCase(
+                    gameModeId = gameModeId
+                ).points
+            } else if (points > formerScore.maxPoints) {
+                saveLocalMaxScoreUseCase(
+                    gameModeId = gameModeId,
+                    score = this
+                )
+                maxPoints = points
+            }
+        }
+
 }
