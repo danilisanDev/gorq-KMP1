@@ -14,7 +14,7 @@ Developing an original game with easy rules which could be explained through the
 2.	**Jetpack Compose (Multiplatform)** for UI design.
 3.	**Coroutines & StateFlow** for asynchronous programming.
 4.	**Koin** for Dependency Injection.
-5.	**[Settings](https://github.com/russhwolf/multiplatform-settings) & Kotlinx Serialization**, for persistence.
+5.	**[Settings](https://github.com/russhwolf/multiplatform-settings) & Kotlinx Serialization** for persistence.
 6.	**[Napier](https://github.com/AAkira/Napier)** for debug/logging.
 
 ### WHAT NEXT
