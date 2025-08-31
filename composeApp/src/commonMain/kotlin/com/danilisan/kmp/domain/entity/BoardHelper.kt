@@ -1,18 +1,8 @@
 package com.danilisan.kmp.domain.entity
 
-import com.danilisan.kmp.domain.entity.GameMode.EasyAdd
-import com.danilisan.kmp.domain.entity.GameMode.HardMultiply
 import com.danilisan.kmp.domain.entity.NumberBox.Companion.EMPTY_VALUE
-import org.jetbrains.compose.resources.StringResource
 
 object BoardHelper {
-    val GAME_MODES: List<GameMode> = listOf(
-        EasyAdd,
-        HardMultiply,
-    )
-
-    fun getModeNames(): List<StringResource> = GAME_MODES.map { it.modeName }
-
     enum class LineDirection(private val code: Int) {
         LEFT_DIAGONAL(code = 0),    //TopLeft to BottomRight
         RIGHT_DIAGONAL(code = 1),   //TopRight to BottomLeft

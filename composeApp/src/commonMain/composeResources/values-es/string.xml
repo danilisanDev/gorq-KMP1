@@ -4,10 +4,19 @@
     <string name="easyAddMode">Modo clásico</string>
     <string name="multiplyMode">Modo múltiplos</string>
     <string name="jumboAddMode">Jumbo Classic</string>
-    <string name="timeTrialMode">Contra reloj</string>
-    <string name="blindMode">Bloques ciegos</string>
+    <string name="timeTrialMode">Contrarreloj</string>
+    <string name="blindMode">Avalancha</string>
     <string name="voidMode">Cero absoluto</string>
     <string name="zenMode">Modo zen</string>
+
+    <!--Mode descriptions-->
+    <string name="descEasyAdd">Consiste en sumar números.</string>
+    <string name="descMultiply">¿Cómo llevas las tablas de multiplicar?</string>
+    <string name="descJumboAdd">Tablero más grande.</string>
+    <string name="descTimeTrial">Tienes 3 minutos.</string>
+    <string name="descBlind">No ves los bloques venir.</string>
+    <string name="descVoid">Y no quedó ninguno.</string>
+    <string name="descZen">De chill</string>
 
     <!-- Tags -->
     <string name="bingoTag">Bingo</string>
@@ -15,8 +24,11 @@
 
     <!-- Menu bar-->
     <string name="btnNewGame">Nueva partida</string>
+    <string name="btnStartNewGame">¡Empezar!</string>
     <string name="btnContinue">Continuar</string>
+    <string name="btnCancel">Cancelar</string>
     <string name="btnRanking">Clasificaciones</string>
+    <string name="selectModeTag">Selecciona un modo de juego</string>
     <string name="recordTag">Récord: </string>
 
     <!-- Score Display-->
@@ -27,7 +39,7 @@
     <string name="turns">Turnos</string>
 
     <!-- Reload Button text -->
-    <string name="gameOverButton">REINTENTAR</string>
+    <string name="gameOverButton">¡Otra partida!</string>
     <string name="bingoButton">¡Púlsame!</string>
     <string name="reloadMultiplierButton">x</string>
 

@@ -10,13 +10,11 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.Text
@@ -26,7 +24,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
@@ -50,8 +47,6 @@ import kotlinproject.composeapp.generated.resources.reloadMultiplierButton
 
 import org.jetbrains.compose.resources.stringResource
 import org.jetbrains.compose.resources.vectorResource
-
-const val RELOAD_BUTTON_TEXT_DIV = 3.5f
 
 @Composable
 fun UIReloadButton(
@@ -122,7 +117,7 @@ fun UIReloadButton(
             Text(
                 text = properties.text,
                 color = properties.textColor,
-                fontSize = (boxSize / RELOAD_BUTTON_TEXT_DIV).toSp(),
+                fontSize = (boxSize / properties.textSizeDiv).toSp(),
                 fontWeight = FontWeight.SemiBold,
                 textAlign = TextAlign.Center,
                 style = textStyle
@@ -213,11 +208,12 @@ private fun getProperties(
         )
         BoardState.GAMEOVER -> ReloadBtnProperties(
             shape = Theme.shapes.regularShape,
-            primaryColor = Theme.colors.primary.withAlpha(0.8f),
-            borderColor = Theme.colors.selected,
+            primaryColor = Theme.colors.selected.withAlpha(0.8f),
+            borderColor = Theme.colors.primary,
+            textSizeDiv = 4f,
             hasIcon = false,
             text = stringResource(Res.string.gameOverButton),
-            textColor = Theme.colors.secondary
+            textColor = Theme.colors.primary
         )
     }
 }
@@ -226,6 +222,7 @@ private class ReloadBtnProperties(
     val shape: Shape,
     val hasIcon: Boolean,
     val text: String,
+    val textSizeDiv: Float = 3.5f,
     val primaryColor: Color,
     val borderColor: Color,
     val textColor: Color,

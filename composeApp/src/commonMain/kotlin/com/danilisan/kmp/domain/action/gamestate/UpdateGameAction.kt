@@ -108,6 +108,11 @@ class UpdateGameAction(
             formerScore = getState().score,
             scoreIncrement = scoreIncrement
         )
+        val newReloads = if(option == UpdateOptions.NEW_GAME){
+            gameMode.initialReloads
+        }else{
+            getState().reloadsLeft + reloadsIncrement
+        }
 
         //Update model
         saveGameStateUseCase(
@@ -115,7 +120,7 @@ class UpdateGameAction(
             board = updatingBoard,
             queue = updatingQueue,
             score = newScore,
-            reloadsLeft = getState().reloadsLeft + (reloadsIncrement),
+            reloadsLeft = newReloads,
         )
 
         //Update UI
@@ -124,7 +129,7 @@ class UpdateGameAction(
                 board = createEmptyBoardUseCase(gameMode.lineLength),
                 updatingPositions = newPositions,
                 score = Score(),
-                reloadsLeft = gameMode.initialReloads
+                reloadsLeft = newReloads
             ).let { newGameState ->
                 updateState(newGameState)
             }

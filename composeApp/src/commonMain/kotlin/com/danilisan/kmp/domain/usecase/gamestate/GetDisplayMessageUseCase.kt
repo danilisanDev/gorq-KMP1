@@ -18,6 +18,10 @@ import kotlinproject.composeapp.generated.resources.displayMsgGameOver
 import kotlinproject.composeapp.generated.resources.displayMsgNoMoves
 import kotlinx.coroutines.withContext
 
+/**
+ * Use case that returns a DisplayMessage
+ * depending on the BoardState.
+ */
 class GetDisplayMessageUseCase(
     override val dispatcher: DispatcherProvider
 ) : UseCase {

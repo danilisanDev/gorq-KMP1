@@ -1,8 +1,8 @@
 package com.danilisan.kmp.domain.action.gamestate
 
-import com.danilisan.kmp.domain.entity.BoardHelper.GAME_MODES
 import com.danilisan.kmp.domain.entity.BoardPosition
 import com.danilisan.kmp.domain.entity.GameMode
+import com.danilisan.kmp.domain.entity.GameMode.Companion.getListOfGameModes
 import com.danilisan.kmp.domain.usecase.gamestate.GetSavedGameStateUseCase
 import com.danilisan.kmp.ui.state.GameModeState
 import com.danilisan.kmp.ui.state.GameStateUiState
@@ -59,7 +59,7 @@ class GameStateActionManager(
         //Update game mode
         try{
             updateGameMode(
-                newGameMode = GAME_MODES[gameModeId],
+                newGameMode = getListOfGameModes()[gameModeId],
                 updateViewModelGameMode = updateViewModelGameMode
             )
         }catch(_: IndexOutOfBoundsException){
@@ -118,7 +118,8 @@ class GameStateActionManager(
         lineEndAction(getStateMethod, updateStateMethod, gameMode)
 
     companion object {
-        const val BASE_ACTION_DELAY = 300L
+        //Animation delay constants
+        private const val BASE_ACTION_DELAY = 300L
         const val TRAVEL_ACTION_DELAY = BASE_ACTION_DELAY * 3
         const val UPDATE_BOARD_TOTAL_DELAY = BASE_ACTION_DELAY * 2
         const val SELECTION_DELAY = BASE_ACTION_DELAY * 3

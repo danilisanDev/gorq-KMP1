@@ -115,29 +115,27 @@ fun UINumberBox(
         ,
         contentAlignment = Alignment.Center,
     ) {
-        getNumberBox().let{ numberBox ->
-            //Star background icon
-            if (numberBox is NumberBox.StarBox) {
-                Image(
-                    imageVector = vectorResource(Res.drawable.star7),
-                    contentDescription = "star",
-                    modifier = Modifier
-                        .matchParentSize()
-                )
-                StarReflection(applyStarAnimation)
-            }
+        //Star background icon
+        if (getNumberBox() is NumberBox.StarBox) {
+            Image(
+                imageVector = vectorResource(Res.drawable.star7),
+                contentDescription = "star",
+                modifier = Modifier
+                    .matchParentSize()
+            )
+            StarReflection(applyStarAnimation)
+        }
 
-            //Number value
-            if (numberBox.value != EMPTY_VALUE) {
-                TextNumberForUIBox(
-                    boxSize = boxSize,
-                    value = numberBox.value,
-                    applyWhiteText = {
-                        numberBox !is NumberBox.RegularBox
-                                || (applyShader()?.whiteText ?: false)
-                    }
-                )
-            }
+        //Number value
+        if (getNumberBox().value != EMPTY_VALUE) {
+            TextNumberForUIBox(
+                boxSize = boxSize,
+                value = getNumberBox().value,
+                applyWhiteText = {
+                    getNumberBox() !is NumberBox.RegularBox
+                            || (applyShader()?.whiteText ?: false)
+                }
+            )
         }
     }
 }

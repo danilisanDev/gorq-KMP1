@@ -26,11 +26,9 @@ class GameStateViewModel(
     //region STATE HOLDERS
     /**
      * Variables that hold the state of the game
-     * GameState StateFlow (from savedStateHandle)
+     * GameState StateFlow
      * GameMode StateFlow
      */
-    //const val KEY_SAVED_STATE = "game_state_flow"
-    //var gameState = savedStateHandle.getStateFlow(KEY_SAVED_STATE, GameStateUiState())
 
     //Concurrency control
     private val gameStateMutex = Mutex()

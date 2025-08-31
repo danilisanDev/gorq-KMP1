@@ -5,7 +5,7 @@ import com.danilisan.kmp.domain.usecase.UseCase
 import kotlinx.coroutines.withContext
 
 /**
- * Returns a shuffled list of alternating boolean values:
+ * Use case that returns a shuffled list of alternating boolean values:
  * true represents a pool of even numbers;
  * false stands for a pool of odd numbers.
  * First boolean (before shuffling) will be

@@ -12,6 +12,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.zIndex
 import com.danilisan.kmp.ui.state.BoardState
 import com.danilisan.kmp.ui.theme.Theme
 import com.danilisan.kmp.domain.entity.BoardPosition
@@ -44,7 +45,8 @@ fun UIBoardContainer(
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
-            .aspectRatio(1f),
+            .aspectRatio(1f)
+            .zIndex(1f),
         contentAlignment = Alignment.Center,
     ) {
         //Board container background

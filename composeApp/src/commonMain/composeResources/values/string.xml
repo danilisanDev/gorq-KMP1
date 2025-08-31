@@ -9,14 +9,26 @@
     <string name="voidMode">Absolute Zero</string>
     <string name="zenMode">Zen mode</string>
 
+    <!--Mode descriptions-->
+    <string name="descEasyAdd">It's a number-adding game.</string>
+    <string name="descMultiply">Do you know your multiplication tables?</string>
+    <string name="descJumboAdd">Bigger board.</string>
+    <string name="descTimeTrial">Got 3 minutes.</string>
+    <string name="descBlind">Can't see the coming blocks.</string>
+    <string name="descVoid">And Then There Were None.</string>
+    <string name="descZen">Like a Sunday morning</string>
+
     <!-- Tags -->
     <string name="bingoTag">Bingo</string>
     <string name="colon">:</string>
 
-    <!-- Menu bar-->
+    <!-- Menu-->
     <string name="btnNewGame">New game</string>
+    <string name="btnStartNewGame">Start!</string>
     <string name="btnContinue">Continue</string>
+    <string name="btnCancel">Cancel</string>
     <string name="btnRanking">Top scores</string>
+    <string name="selectModeTag">Select a game mode</string>
     <string name="recordTag">Highest score: </string>
 
     <!-- Score Display-->
@@ -45,4 +57,5 @@
         <item quantity="other">%1$d lines</item>
     </plurals>
     <string name="displayMsgOrOperator"> or </string>
+
 </resources>

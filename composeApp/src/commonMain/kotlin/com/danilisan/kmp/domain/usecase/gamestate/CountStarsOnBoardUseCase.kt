@@ -6,6 +6,9 @@ import com.danilisan.kmp.domain.entity.NumberBox
 import com.danilisan.kmp.domain.usecase.UseCase
 import kotlinx.coroutines.withContext
 
+/**
+ * Use case for counting the number of StarBoxes on the board.
+ */
 class CountStarsOnBoardUseCase (
     override val dispatcher: DispatcherProvider
 ) : UseCase {

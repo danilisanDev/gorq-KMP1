@@ -45,7 +45,7 @@ const val ASPECT_RATIO = 0.8f
 const val CONTAINER_PADDING = 7
 
 @Composable
-fun BoxScope.UIQueue(
+fun BoxScope.UIQueueContainer(
     getQueueBoxes: () -> List<NumberBox>,
     getSelectedSize: () -> Int = { -1 },
     getUpdatingPositions: () -> List<BoardPosition?> = { emptyList() },

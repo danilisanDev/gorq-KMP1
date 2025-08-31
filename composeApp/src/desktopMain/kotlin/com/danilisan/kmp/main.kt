@@ -18,12 +18,13 @@ fun main(){
     application {
         val state = rememberWindowState(
             width = 400.dp,
-            height = 800.dp,
+            height = 700.dp,
         )
         Window(
             onCloseRequest = ::exitApplication,
-            title = "KotlinProject",
-            state = state
+            title = "gorq",
+            state = state,
+            resizable = false,
         ) {
             App()
         }

@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -82,8 +81,7 @@ fun UIScoreDisplay(
 
     BoxWithConstraints(
         modifier = Modifier
-            .fillMaxWidth()
-            .aspectRatio(6f)
+            .fillMaxSize()
             .graphicsLayer {
                 alpha = applyAlpha()
             }
@@ -100,7 +98,7 @@ fun UIScoreDisplay(
             ),
         contentAlignment = Alignment.Center
     ) {
-        val boxSize = maxWidth
+        val boxSize = maxHeight
         Row(
             modifier = Modifier
                 .fillMaxWidth(0.9f)
@@ -110,7 +108,7 @@ fun UIScoreDisplay(
             //Score tag and lines
             ScoreTagAndLines(
                 getLines = { score.lines },
-                fontSize = (boxSize / 21f).toSp()
+                fontSize = (boxSize / 4f).toSp()
             )
 
             //Small numbers
@@ -122,7 +120,7 @@ fun UIScoreDisplay(
                         trillionSymbol = trillionSymbol,
                     ).dropLast(n = 2)
                 },
-                fontSize = (boxSize / 17f).toSp(),
+                fontSize = (boxSize / 3f).toSp()
             )
 
             //Big numbers
@@ -134,7 +132,7 @@ fun UIScoreDisplay(
                         trillionSymbol = trillionSymbol,
                     ).takeLast(n = 2).padStart(2, '0')
                 },
-                fontSize = (boxSize / 10f).toSp(),
+                fontSize = (boxSize / 2f).toSp(),
                 isGoldenStar = isGoldenStar(score),
                 applyStarAnimation = applyStarAnimation,
                 textMeasurer = textMeasurer,

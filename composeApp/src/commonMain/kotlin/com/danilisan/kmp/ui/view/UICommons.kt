@@ -12,6 +12,9 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
+import com.danilisan.kmp.domain.entity.GameMode
+import com.danilisan.kmp.domain.entity.GameMode.Companion.getListOfGameModes
+import com.danilisan.kmp.ui.theme.Theme
 import kotlin.math.roundToInt
 
 const val MAX_DISPLAY: Long = 1_000_000_000_000L
@@ -93,6 +96,18 @@ fun List<Color>.toArrayWithAbsoluteColorStops(
 }
 
 //Color utils
+@Composable
+fun getColorByGameMode(gameModeId: Int): Color =
+    getListOfGameModes().let{ list ->
+        if(gameModeId >= list.size || gameModeId < 0) return Theme.colors.primary
+        else{
+            when(list[gameModeId]){
+                GameMode.EasyAdd -> Theme.colors.primary
+                GameMode.HardMultiply -> Theme.colors.error
+            }
+        }
+    }
+
 fun createRelativeShader(
     shaderColor: Color,
     bgColor: Color? = null,

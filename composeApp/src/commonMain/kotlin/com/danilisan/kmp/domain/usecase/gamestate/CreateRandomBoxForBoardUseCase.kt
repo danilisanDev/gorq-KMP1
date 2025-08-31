@@ -10,7 +10,7 @@ import io.github.aakira.napier.Napier
 import kotlinx.coroutines.withContext
 
 /**
- * Returns a BoardNumberBox (RegularBox)
+ * Use case that returns a BoardNumberBox (RegularBox)
  * for the given BoardPosition,
  * whose value is randomly picked from the Pool,
  * excluding numbers which would fulfill the winCondition

@@ -6,6 +6,10 @@ import com.danilisan.kmp.domain.entity.NumberBox
 import com.danilisan.kmp.domain.usecase.UseCase
 import kotlinx.coroutines.withContext
 
+/**
+ * Use case for adding a new box on the target position on the board
+ * replacing the former box.
+ */
 class AddBoxOnBoardUseCase(
     override val dispatcher: DispatcherProvider
 ) : UseCase {

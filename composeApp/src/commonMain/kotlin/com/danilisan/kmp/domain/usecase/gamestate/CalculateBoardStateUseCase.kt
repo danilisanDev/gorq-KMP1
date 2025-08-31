@@ -5,6 +5,9 @@ import com.danilisan.kmp.domain.usecase.UseCase
 import com.danilisan.kmp.ui.state.BoardState
 import kotlinx.coroutines.withContext
 
+/**
+ * Use case for calculating the BoardState.
+ */
 class CalculateBoardStateUseCase(
     override val dispatcher: DispatcherProvider
 ) : UseCase {

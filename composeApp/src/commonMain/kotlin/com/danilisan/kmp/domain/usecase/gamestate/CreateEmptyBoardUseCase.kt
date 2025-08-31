@@ -6,6 +6,9 @@ import com.danilisan.kmp.domain.entity.NumberBox
 import com.danilisan.kmp.domain.usecase.UseCase
 import kotlinx.coroutines.withContext
 
+/**
+ * Use case that returns an empty board
+ */
 class CreateEmptyBoardUseCase(
     override val dispatcher: DispatcherProvider
 ) : UseCase {

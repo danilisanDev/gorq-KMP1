@@ -38,7 +38,6 @@ val domainModule = module{
     factoryOf(::AddBoxOnBoardUseCase)
     factoryOf(::CreateRandomBoxForQueueUseCase)
     factoryOf(::AddBoxOnQueueUseCase)
-    factoryOf(::CheckSelectionResultUseCase)
     factoryOf(::IncrementScoreUseCase)
     factoryOf(::GetDisplayMessageUseCase)
     factoryOf(::UpdateSilverStarValuesUseCase)

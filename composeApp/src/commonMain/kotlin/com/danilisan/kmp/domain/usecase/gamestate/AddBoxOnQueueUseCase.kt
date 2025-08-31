@@ -5,6 +5,13 @@ import com.danilisan.kmp.domain.entity.NumberBox
 import com.danilisan.kmp.domain.usecase.UseCase
 import kotlinx.coroutines.withContext
 
+/**
+ * Use case for adding a new box
+ * on the last position of the queue,
+ * replacing the former box (add StarBox),
+ * OR removing the first box out
+ * and pushing the following to lower indexes.
+ */
 class AddBoxOnQueueUseCase(
     override val dispatcher: DispatcherProvider
 ) : UseCase {
@@ -14,8 +21,8 @@ class AddBoxOnQueueUseCase(
         queueSize: Int,
         replaceLast: Boolean = false,
     ): List<NumberBox> = withContext(dispatcher.default) {
-        if (queueSize <= 0) {//Impossible case but in order to avoid IndexOutOfBoundsException
-            return@withContext emptyList()
+        return@withContext if (queueSize <= 0) {//Impossible case but in order to avoid IndexOutOfBoundsException
+            emptyList()
         } else {
             val resultQueue = currentQueue.toMutableList()
             resultQueue.run {
@@ -29,7 +36,7 @@ class AddBoxOnQueueUseCase(
                     add(newBox)
                 }
             }
-            return@withContext resultQueue
+            resultQueue
         }
     }
 }

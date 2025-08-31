@@ -1,11 +1,12 @@
 package com.danilisan.kmp.domain.entity
 
 import com.danilisan.kmp.Mocks
-import com.danilisan.kmp.domain.entity.BoardHelper.GAME_MODES
 import com.danilisan.kmp.domain.entity.NumberBox.Companion.EMPTY_VALUE
 import com.danilisan.kmp.ui.state.GameModeState
 import io.github.aakira.napier.Napier
 import kotlinproject.composeapp.generated.resources.Res
+import kotlinproject.composeapp.generated.resources.descEasyAdd
+import kotlinproject.composeapp.generated.resources.descMultiply
 import kotlinproject.composeapp.generated.resources.displayMsgAddNumbers
 import kotlinproject.composeapp.generated.resources.displayMsgMultiplyNumbers
 import kotlinproject.composeapp.generated.resources.easyAddMode
@@ -14,8 +15,6 @@ import kotlinproject.composeapp.generated.resources.icon_multiplymode
 import kotlinproject.composeapp.generated.resources.multiplyMode
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.StringResource
-
-//TODO Meter en un package gameMode y separar cada gameMode en un fichero
 
 /**
  * Super class to enclose the rules of a game,
@@ -30,6 +29,7 @@ sealed class GameMode {
 
     //Mode dependent values
     abstract val modeName: StringResource
+    abstract val description: StringResource
     abstract val icon: DrawableResource
 
     //Default overriddable variables
@@ -48,7 +48,7 @@ sealed class GameMode {
     open val selectedNumbersSeparator = " + "
 
     fun getBoardSize(): Int = lineLength * lineLength
-    fun getModeId(): Int = GAME_MODES.indexOf(this)
+    fun getModeId(): Int = getListOfGameModes().indexOf(this)
     fun getGameModeState(): GameModeState =
         GameModeState(
             modeId = getModeId(),
@@ -122,7 +122,7 @@ sealed class GameMode {
         lines = lines,
     )
 
-    private suspend fun getPointsForLines(lines: Int): Long =
+    private fun getPointsForLines(lines: Int): Long =
         (1..lines).fold(0){acc, i -> acc + i * 100}.toLong()
 
     open suspend fun getReloadIncrementForLines(lines: Int): Int =
@@ -138,15 +138,36 @@ sealed class GameMode {
     //Get Mock board
     abstract suspend fun getMockBoard(): Map<BoardPosition, NumberBox>
 
-    /** TODO Traducir
-     * Modo de juego con tablero 3x3 y reserva de 3 numeros.
-     * Las casillas regulares aleatorias tienen valores entre 0 y 7.
-     * La cola se rellena con bloques de valor 8 o 9.
-     * * La seleccion ha de ser de entre 2-3 numeros.
-     * La condicion de victoria es sumar 7 o 17.
+    companion object{
+        fun getListOfGameModes(): List<GameMode> = listOf(EasyAdd, HardMultiply)
+        fun getNumberOfGameModes(): Int = getListOfGameModes().size
+        fun getGameModeById(gameModeId: Int): GameMode =
+            getListOfGameModes().let{ list ->
+                if(gameModeId >= list.size || gameModeId < 0){
+                    EasyAdd
+                }else{
+                    list[gameModeId]
+                }
+            }
+        fun getGameModeNameById(gameModeId: Int): StringResource =
+            getGameModeById(gameModeId).modeName
+
+        fun getGameModeDescById(gameModeId: Int): StringResource =
+            getGameModeById(gameModeId).description
+    }
+
+    /** Classic Mode (default)
+     * Standard mode
+     * 3x3 board
+     * Three boxes queue.
+     * Regular boxes with values between 0-7
+     * Queue is refilled with block boxes with values of 8-9
+     * Selection must be of 2-3 boxes.
+     * Win condition is adding up to 7 or 17.
      */
     data object EasyAdd : GameMode(){
         override val modeName = Res.string.easyAddMode
+        override val description = Res.string.descEasyAdd
         override val icon = Res.drawable.icon_easyaddmode
         override suspend fun getMockBoard(): Map<BoardPosition, NumberBox> =
             Mocks.easyAddBoard
@@ -154,15 +175,18 @@ sealed class GameMode {
     //Default values and functions
 
 
-    /** TODO Traducir
-     * Modo de juego con tablero 3x3 y reserva de 3 numeros.
-     * Las casillas regulares aleatorias pueden tener cualquier valor.
-     * La cola se rellena con bloques de valor 9.
-     * La seleccion ha de ser de entre 2-3 numeros.
-     * La condicion de victoria es formar multiplos 7 o 17.
+    /** Multiply Mode
+     * Standard mode
+     * 3x3 board
+     * Three boxes queue.
+     * Regular boxes with values between 0-9
+     * Queue is refilled with block boxes with values of 9
+     * Selection must be of 2-3 boxes.
+     * Win condition is forming a multiply of 7 or 17.
      */
     data object HardMultiply : GameMode() {
         override val modeName = Res.string.multiplyMode
+        override val description = Res.string.descMultiply
         override val icon = Res.drawable.icon_multiplymode
         override val regularNumbers = boxNumbers.toSet()
         override val blockNumbers = setOf(9)
@@ -194,7 +218,7 @@ sealed class GameMode {
         override suspend fun getNeededNumbers(lineValues: List<Int>): Set<Int> =
             goalValues.flatMap { calculateEmptyValueForMultiple(it, lineValues) }.toSet()
 
-        private suspend fun calculateEmptyValueForMultiple(
+        private fun calculateEmptyValueForMultiple(
             goalValue: Int,
             lineValues: List<Int>,
         ): Set<Int> {
@@ -251,17 +275,17 @@ sealed class GameMode {
     }
 }
 
-    /** TODO Traducir
-     * Modo de juego con tablero 4x4 y reserva de 4 numeros.
-     * Las casillas regulares aleatorias pueden tener cualquier valor.
-     * La cola se rellena con bloques de cualquier valor.
-     * La seleccion ha de ser de entre 2-4 numeros.
-     * La condición de victoria es sumar 11 o 21
+    /** TODO Jumbo Classic Mode
+     * 4x4 board
+     * 4 boxes queue
+     * Regular number values: 0-8
+     * Block number value: 4
+     * Win condition: ADD 11, 21 or 31
      *
     data object JumboAdd : GameMode(){
-        override val regularNumbers: Set<Int> = boxNumbers.toSet()
-        override val blockNumbers: Set<Int> = regularNumbers
-        override val goalValues: Set<Int> = setOf(11,21)
+        override val regularNumbers: Set<Int> = boxNumbers.remove(9)
+        override val blockNumbers: Set<Int> = (4)
+        override val goalValues: Set<Int> = setOf(11,21,31)
         override val boardSize: Int = 4
         override val queueSize: Int = 4
         override val maxSelection: Int = 4
@@ -278,38 +302,48 @@ sealed class GameMode {
         //isGoldenStar = DEFAULT
 
     }
-}
+    */
 
-/** TODO Traducir
- * Modo de juego con tablero 3x3 y reserva de 1 numero.
- * Las casillas regulares aleatorias pueden tener cualquier valor.
- * La cola se rellena con casillas regulares de cualquier valor.
- * La seleccion ha de ser de 3 numeros. (¿2 o 3?)
- * **El exceso de la cola se cubre con casillas regulares aleatorias.**
- * **No hay recargas** ???
- * La condición de victoria es sumar 7 o 17
- *
-data object BlindMode : GameMode(){
-    override val regularNumbers: Set<Int> = boxNumbers.toSet()
-    override val blockNumbers: Set<Int> = regularNumbers
-    override val queueSize: Int = 1
-    override val minSelection: Int = 3
-}
+    /** TODO Blind Mode / Avalanche
+     * 3x3 board
+     * Single box queue
+     * Selection of exactly 3 boxes.
+     * After selection, queue box is placed first and then two random block boxes are placed.
+     *
+    data object BlindMode : GameMode(){
+        override val regularNumbers: Set<Int> = boxNumbers.toSet()
+        override val blockNumbers: Set<Int> = regularNumbers
+        override val queueSize: Int = 1
+        override val minSelection: Int = 3
+    }
+    */
 
-/** TODO Traducir
- * Modo de juego con tablero 5x5 y reserva de 1 numero.
- * Las casillas regulares aleatorias pueden tener cualquier valor.
- * La cola se rellena con casillas regulares de cualquier valor.
- * La seleccion ha de ser de entre 1-3 numeros. (¿?)
- * **El exceso de la cola se cubre con casillas regulares de valor 0.**
- * **No hay recargas**
- * La condición de victoria es sumar 7 o 17
- *
-data object VoidMode : GameMode(){
-    override val regularNumbers: Set<Int> = boxNumbers.toSet()
-    override val blockNumbers: Set<Int> = setOf(0)
-    override val queueSize: Int = 1
-    override val minSelection: Int = 1
-    override val maxSelection: Int = 3
-}
-*/
+    /** TODO Void mode
+     * 5x5 board
+     * Single box queue
+     * After selection, queue box is placed first and then two regular boxes with value 0.
+     * No reloads available.
+     * A board full of 0 value boxes is considered a BINGO.
+     *
+    data object VoidMode : GameMode(){
+        override val regularNumbers: Set<Int> = boxNumbers.toSet()
+        override val blockNumbers: Set<Int> = setOf(0)
+        override val queueSize: Int = 1
+        override val minSelection: Int = 1
+        override val maxSelection: Int = 3
+    }
+    */
+
+     /** TODO Time trial mode
+      * 3x3 board, 3 boxes queue
+      * Limit time of 3 minutes.
+      * Cost of reload: 5 seconds.
+      * No stars nor block boxes.
+    */
+
+    /** TODO Zen mode
+     * 3x3 board, 3 boxes queue
+     * No stars.
+     * One random block box at the end of the queue.
+     * Reload restarts the score.
+     */

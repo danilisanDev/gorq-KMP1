@@ -2,9 +2,9 @@ package com.danilisan.kmp.domain.mapper
 
 import com.danilisan.kmp.data.model.GameStateModel
 import com.danilisan.kmp.data.model.gameState.ScoreModel
-import com.danilisan.kmp.domain.entity.BoardHelper.GAME_MODES
 import com.danilisan.kmp.domain.entity.BoardPosition
 import com.danilisan.kmp.domain.entity.GameMode
+import com.danilisan.kmp.domain.entity.GameMode.Companion.getListOfGameModes
 import com.danilisan.kmp.domain.entity.Score
 import com.danilisan.kmp.domain.entity.NumberBox
 import com.danilisan.kmp.ui.state.GameStateUiState
@@ -35,9 +35,9 @@ fun GameStateModel.toUiState(): Pair<GameMode, GameStateUiState>{
 }
 
 private fun Int.toUiGameMode(): GameMode = try{
-        GAME_MODES[this]
+        getListOfGameModes()[this]
     }catch (e: IndexOutOfBoundsException){ //Impossible case
-        GAME_MODES.first()?: GameMode.EasyAdd
+        getListOfGameModes().first()?: GameMode.EasyAdd
     }
 
 private fun List<Int>.toUiBoard(boardSize: Int): Map<BoardPosition, NumberBox> =

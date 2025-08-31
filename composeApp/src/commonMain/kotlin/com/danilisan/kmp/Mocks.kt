@@ -29,7 +29,7 @@ object Mocks {
         BoardPosition(2, 1) to NumberBox.RegularBox(9),
         BoardPosition(2, 2) to NumberBox.RegularBox(1),
     )
-
+/*
     val jumboBoard: Map<BoardPosition, NumberBox> = mapOf(
         BoardPosition(0, 0) to NumberBox.RegularBox(0),
         BoardPosition(0, 1) to NumberBox.RegularBox(0),
@@ -44,7 +44,7 @@ object Mocks {
         BoardPosition(2, 2) to NumberBox.RegularBox(4),
         BoardPosition(2, 3) to NumberBox.RegularBox(1),
     )
-
+*/
 
     val titleBoard:Map<BoardPosition, NumberBox> = mapOf(
         BoardPosition(0, 0) to NumberBox.RegularBox(103),

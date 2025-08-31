@@ -4,6 +4,11 @@ import com.danilisan.kmp.core.provider.DispatcherProvider
 import com.danilisan.kmp.domain.entity.NumberPool
 import com.danilisan.kmp.domain.usecase.UseCase
 
+/**
+ * Use case that returns a Pair
+ * with a NumberPool with the available numbers and a List of Booleans
+ * to ensure a balanced parity on Board and/or Queue.
+ */
 class GetPoolAndParityUseCase(
     override val dispatcher: DispatcherProvider,
     private val getNumberPoolUseCase: GetNumberPoolUseCase,
