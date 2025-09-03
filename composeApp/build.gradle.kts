@@ -133,6 +133,10 @@ compose.desktop {
         mainClass = "com.danilisan.kmp.MainKt"
 
         nativeDistributions {
+            windows{
+                includeAllModules = true
+                iconFile.set(project.file("src/desktopMain/resources/icon.ico"))
+            }
             targetFormats(TargetFormat.Dmg, TargetFormat.Exe, TargetFormat.Msi, TargetFormat.Deb)
             packageName = "gorq"
             packageVersion = "1.0.0"
